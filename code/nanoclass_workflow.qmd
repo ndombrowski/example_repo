@@ -352,21 +352,32 @@ snakemake \
     --conda-prefix /zfs/omics/projects/amplicomics/bin/NanoClass2/.snakemake/conda \
     --cores 1 --nolock --rerun-incomplete -np
 
-conda deactivate 
 
 # Submit job via a job script to the compute node: job id is 74581
 sbatch jobscript.sh
 
+# Generate a report out of this
+snakemake --report report.html \
+  --configfile config.yaml \
+  -s /zfs/omics/projects/amplicomics/bin/NanoClass2/Snakefile
+
+conda deactivate 
+
 # Run seqkit on the cleaned data
 seqkit stats -a -To results/seqkit/seqkit_stats_filtered.tsv results/data/mic2024/chopper/BC*gz --threads 10
 
-
 # cleanup (not needed)
-rm -r results/benchmarks
-rm -r results/data
-rm -r results/logs
-rm -r results/plots
-rm -r results/stats
+# rm -r results/benchmarks
+# rm -r results/data
+# rm -r results/logs
+# rm -r results/plots
+# rm -r results/stats
 ```
 
+**Comments**
 
+- Looking at the seqkit stats we went from:
+  - on average 19,695 to 17,513 reads
+  - total 413,614 to 367,773 reads
+  - total 561,031,890 to 520,739,003 bp
+- Link to the report is [here](../../results/nanoclass/report.html)

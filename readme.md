@@ -32,7 +32,7 @@ NanoClass2 was used to classify 16S rRNA amplicon sequences from 21 samples. DNA
 | BC9   | BF-SD3  | wood          | SD3         | 1               |
 
 
-The code documentation can be viewed [here](tba).
+The code documentation can be viewed [here](https://ndombrowski.github.io/example_repo/code/nanoclass_workflow.html) and the raw code is [here](https://github.com/ndombrowski/example_repo/blob/main/code/nanoclass_workflow.qmd).
 
 
 ## Contact information
