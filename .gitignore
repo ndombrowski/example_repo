@@ -1,0 +1,9 @@
+# Ignore large files
+*.zip
+.Rhistory
+
+
+# Ignore folders
+**/.quarto/
+**/old/
+
