@@ -5,14 +5,28 @@ project:
     - "*.qmd"
     - "!readme.md"
 
+execute:
+  freeze: auto  # re-render only when source changes
+
 website:
   title: "Example workflow"
   page-navigation: true
   sidebar: 
     style: "docked"
+    collapse-level: 2
     search: true
     contents:
-      - "scripts/nanoclass_workflow.qmd"
+    - text: "Welcome page"
+      href: index.qmd
+
+    - section: "Data analysis"
+      contents:
+        - text: "Code documentation"
+          href: scripts/nanoclass_workflow.qmd
+
+        - text: "OTU table analysis"
+          href: scripts/OTU_table_analysis.qmd
+
   page-footer:
     left: |
       Copyright 2024, Nina Dombrowski
@@ -21,9 +35,7 @@ format:
   html:
     embed-resources: true
     toc: true
+    toc-expand: true
     toc-location: left
-
-execute:
-  eval: false
 
 engine: knitr

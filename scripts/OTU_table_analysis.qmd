@@ -1,0 +1,918 @@
+---
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: left
+    df-print: kable
+
+execute:
+  eval: true
+
+engine: knitr
+---
+
+# Analysing 16S rRNA data with R
+
+The goal of this tutorial is to analyse 16S rRNA gene data. Our input file is an OTU/ASV table that already contains some taxa information and will go through the following steps:
+
+- Reading the data into R
+- Filtering the data 
+- Normalizing the data
+- Visualizing the data (i.e. alpha/beta diversity, barplots, ...)
+
+In the example we look at an OTU table of 28 samples. These 28 samples represent three distinct microbiomes from three Winogradsky column experiments in which columns were created using wood, paper and a wood/paper mix as substrate. DNA was collected on two separate dates, so another category we can compare is the sampling date.
+
+
+## Setup
+
+We start with setting a path to working directory and setting a seed seed for normalization protocol. 
+
+Setting a set is not essential but this way we make sure that we get the same results when normalizing our OTU table. If we randomly select some observations for any task in R or in any statistical software it results in different values all the time and this happens because of randomization. If we want to keep the values that are produced at first random selection then we can do this by storing them in an object after randomization or we can fix the randomization procedure so that we get the same results all the time.
+
+
+## Installation notes
+
+Some packages required for this workflow are installed with BiocManager or devtools, if you need to install any of these tools, remove the `#` from the code and run it.
+
+```{r}
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+
+#BiocManager::install("phyloseq")
+#BiocManager::install("microbiome")
+#BiocManager::install("ALDEx2")
+#BiocManager::install("DESeq2")
+```
+
+
+## Load packages
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse) #general parsing
+library(data.table) #general parsing
+library(phyloseq) #phyloseq object loading
+library(vegan) #rarefaction
+library(microbiome) #normalization
+library(ALDEx2) #stats
+library(DESeq2) #stats
+library(grid) #organizing multiple plots
+library(gridExtra) #organizing multiple plots
+library(scales) #plot aesthetic, comma setting
+library(ANCOMBC) #stats
+library(ggvenn) # vendiagram
+library(gplots) #vendiagram
+```
+
+
+## Custom functions
+
+Next, we read in some custom things such as a theme that we will use for plotting our graphs and a color vectors.
+
+Defining a custom_theme for our plots is useful because it means that instead of re-writing the commands for our plot over and over again in each plot, we can just use the `custom_theme` function instead.
+
+```{r}
+#define custom theme for generating figures
+custom_theme <- function() {
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(), 
+    panel.border =element_blank(),
+    axis.line.x = element_line(color="black", size = 0.5),
+    axis.line.y = element_line(color="black", size = 0.5),
+    strip.text.x = element_text(size = 7),
+    strip.text.y = element_text(size = 7),
+    strip.background = element_rect(fil="#FFFFFF", color = "black", linewidth = 0.5),
+    axis.text.x = element_text(size = 7),
+    legend.text = element_text(size = 8), legend.title = element_text(size = 10)
+  )
+}
+
+#generate color scheme 
+c25 <- c("dodgerblue2", "#E31A1C", "green4", "#6A3D9A", "#FF7F00", "black", "gold1", "skyblue2", "#FB9A99", 
+        "palegreen2", "#CAB2D6", "#FDBF6F", "gray70", "khaki2", "maroon", "orchid1", "deeppink1", "blue1", 
+        "steelblue4", "darkturquoise", "green1", "yellow4", "yellow3","darkorange4", "brown")
+```
+
+
+
+## Read in the data
+
+### OTU table
+
+An OTU table contains a column with the OTUs (taxonomic ranks in our case) and one column per sample with the counts how often OTU is found in the sample. It might look something like this:
+
+|#NAME|EP1910|RMT|KJB3|TJR|
+|:----|:----|:----|:----|:----|
+|Bacteria;Acidobacteria;Acidobacteriia;Acidobacteriales;Acidobacteriaceae (Subgroup 1);NA|0|0|0|0|
+|Bacteria;Acidobacteria;Acidobacteriia;Solibacterales;Solibacteraceae (Subgroup 3);PAUC26f|0|5|3|1|
+
+
+```{r}
+# Provide the path to the otu table
+file_paths <- c("../data/for_ma/otu-table-forMA.txt")
+
+# Read in otu table
+merged_otu_table <- read.table(file_paths, header = T, sep = '\t', comment = "")
+colnames(merged_otu_table)[1] <- "taxid"
+
+# Replace NA with 0
+merged_otu_table[is.na(merged_otu_table)] <- 0
+
+# R does not like - and will replace things with dots, clean up the sample names
+colnames(merged_otu_table) <- gsub("\\.", "_", colnames(merged_otu_table)) 
+
+#use the taxon as rownames
+rownames(merged_otu_table) <- merged_otu_table$taxid
+merged_otu_table$taxid <- NULL
+
+#check how many otus and samples we have
+dim(merged_otu_table)
+```
+
+With this example OTU table, we work with `dim(merged_otu_table)[2]` samples and `r dim(merged_otu_table)[1]` OTUs.
+
+
+
+
+### Metadata 
+
+The metadata table contains information about our samples and can look something like this:
+
+|#NAME|treatment|Date|
+|:----|:----|:----|
+|EP1910|wood|2023_1|
+|RMT|paper|2023_1|
+|KJB3|mix|2023_1|
+|TJR|paper|2023_1|
+|IB5|wood|2023_1|
+|ALIDNA|wood|2023_1|
+|IG7|paper|2023_1|
+|B314|mix|2023_1|
+
+```{r}
+# Read in metadata file
+metadata_combined <- read.table("../data/for_ma/sample_table.txt", header = TRUE, row.names = 1, sep = "\t", comment.char = "")
+
+# Replace dashes with underscores in row names
+rownames(metadata_combined) <- gsub("-", "_", rownames(metadata_combined))
+
+# Ensure that the group data is categorical 
+metadata_combined$Practical_group <- gsub("^", "Day", metadata_combined$Practical_group)
+
+# Add extra column for sample names
+metadata_combined$name <- paste0(metadata_combined$Carbon_source, "_", rownames(metadata_combined))
+metadata_combined$sample_id <- rownames(metadata_combined)
+
+# Order the factors for our names column
+metadata_combined <- metadata_combined |> 
+  arrange(desc(Carbon_source))
+
+# View output
+head(metadata_combined)
+```
+
+
+
+
+## Generate taxonomy file
+
+Next, we generate a table that list the taxonomy information for each taxonomic rank. We do this by taking the information from our OTU table. Depending on how you analysed your 16S rRNA gene sequences, you might have an OTU table with IDs (ASV1, ASV2, ... or OTU1, OTU2, ...) and a separate table with the taxonomy information. 
+
+If that is the case, you can read in the taxonomy information separate.
+
+```{r}
+#extract taxonomy string
+temp <- as.data.frame(rownames(merged_otu_table))
+colnames(temp) <- "OTU"
+
+#separate the taxonomic headers                      
+taxonomy_file <- temp |> 
+  distinct(OTU) |> 
+  separate(OTU,
+           c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus"), 
+           sep = ";", remove = FALSE) |> 
+  column_to_rownames(var = "OTU")
+
+#view file
+head(taxonomy_file)
+```
+
+## Generate phyloseq object
+
+A phyloseq object combines different elements of an analysis (i.e. the OTU table, the list of taxa and the mapping file) into one single object. We can easily generate such an object with the three dataframes we have generated above:
+
+```{r}
+#combine data
+OTU = otu_table(merged_otu_table, taxa_are_rows = TRUE)
+TAX = tax_table(as.matrix(taxonomy_file))
+physeq = phyloseq(OTU, TAX, sample_data(metadata_combined))
+
+#view structure
+physeq
+```
+
+
+
+## Exploring the raw data
+
+### Get some summary statistics
+
+Below, we write a custom function to calculate some summary statistics. We easily could do this without a function, however, since we want to compare the statistics before and after  filtering the OTU table, the function is useful to have, since we do not need to copy-paste the exact same code in two spots of the workflow:
+
+```{r}
+print_summary <- function(reads_per_OTU) {
+  total_reads <- sum(reads_per_OTU)
+  otu_number <- length(reads_per_OTU)
+  num_singletons <- length(reads_per_OTU[reads_per_OTU == 1])
+  num_doubletons <- length(reads_per_OTU[reads_per_OTU == 2])
+  num_less_than_10 <- length(reads_per_OTU[reads_per_OTU < 10])
+  total_reads_less_than_10 <- sum(reads_per_OTU[reads_per_OTU < 10])
+  perc_reads_less_than_10 <- (total_reads_less_than_10 / sum(reads_per_OTU)) * 100
+  
+  cat("Total number of reads:", format(total_reads, big.mark = ","), "\n")
+  cat("Number of OTUs",  format(otu_number, big.mark = ","), "\n")
+  cat("Number of singleton OTUs:",  format(num_singletons, big.mark = ","), "\n")
+  cat("Number of doubleton OTUs:",  format(num_doubletons, big.mark = ","), "\n")
+  cat("Number of OTUs with less than 10 seqs:",  format(num_less_than_10, big.mark = ","), "\n")
+  cat("Total reads for OTUs with less than 10 seqs:",  format(total_reads_less_than_10, big.mark = ","), "\n")
+  cat("Percentage of reads for OTUs with less than 10 seqs:",  sprintf("%.2f%%", perc_reads_less_than_10), "\n")
+  
+}
+
+#calculate the number of reads found per otu
+reads_per_OTU <- taxa_sums(physeq)
+
+#summarize the data
+print_summary(reads_per_OTU)
+```
+For this workflow, we define *singletons** as reads/OTUs with a sequence that is present exactly once in the dataset.
+
+Notice that another definition of singletons can be as taxa/OTU present in a single sample.
+        
+In amplicon data analysis it is useful to remove reads with low counts because they are very likely due to sequencing errors. We generally assume that sequencing errors are independent and randomly distributed, and we can assume that erroneous sequences will occur much less often than the true sequence. We will remove such sequences during the data filtering step.
+
+
+### Explore the sequencing depth
+
+Next, let's explore how many reads we have per sample:
+
+```{r}
+#count the number of reads per sample
+sample_counts <- as.data.frame(colSums(merged_otu_table))
+                  
+#clean up the dataframe
+names(sample_counts)[1] <- "counts"
+sample_counts$sampleID <- rownames(sample_counts)
+
+#plot counts
+p_counts <-
+  ggplot(data = sample_counts, aes(x = reorder(sampleID, counts, FUN=sum, decreasing = TRUE), y = counts)) +
+  geom_point() +
+  geom_text(aes(x = , sampleID, y = counts, label = counts),  hjust = 0, nudge_y = 200 , size = 2.5) +
+  coord_flip() +
+  xlab("") + 
+  ylab("Read counts") +
+  custom_theme()
+
+p_counts
+```
+
+In this example, we see two samples with almost no reads and we want to make sure to remove these samples. We also see that we have a large difference between different samples. To be able to compare for example sample IV (~25,000 reads) with sample MN (~1,000 reads) we need to normalize our data after the data filtering step.
+
+
+
+## Filter data
+
+Next, we filter the data. Specifically, we:
+
+- Remove OTUs that are not assigned to anything at Phylum rank. The `subset_taxa` function can be used to remove any taxa you want, i.e. if you have plant DNA in your sample, you could use this to remove chloroplast sequences as well.  
+- Remove samples with total read counts less than 20. This cutoff is arbitrary and depends a bit on your data. To choose a good value, explore the read counts you have per sample and define a cutoff based on that. In this example, we mainly want to remove the two low read samples we have seen in our plot.  
+- Remove low count OTUs: The threshold is up to you; removing singletons or doubletons is common, but you can be more conservative and remove any counts less than 10. Look at the plots before and get a feeling for how many OTUs were removed.  
+
+In our example, we want to remove samples with 20 or less reads, remove singletons only and remove OTUs that occur in less than 10% of our samples (v1). Since there are many different thoughts about OTU table filtering, you can also find two other options (v2 and v3) on how to filter a table.
+
+For most analyses we will work with the filtered data but there are some diversity metrics which rely on the presence of singletons within a sample (richness estimates, i.e. Chao), so you might choose to leave them in for those sorts of analyses only. 
+
+```{r}
+#define cutoffs
+counts_per_sample <- 20
+otu_nr_cutoff <- 1
+min_percentage_samples <- 10
+
+#remove taxa without tax assignment at Phylum rank
+physeq_filt <- subset_taxa(physeq, Phylum != "NA")
+
+#remove samples with less than 20 reads
+physeq_filt <- prune_samples(sample_sums(physeq)>= counts_per_sample, physeq)
+
+#calculate the minimum number of samples an otu should be present in
+min_samples <- ceiling((min_percentage_samples / 100) * nsamples(physeq_filt))
+
+#remove otus that occur only rarely (v1)
+#here, we calculate the total abundance of each otu across all samples and checks if it's greater than the specified otu_nr_cutoff AND we check if the otu occurs in at least <min_percentage_samples>% of samples
+#we only retain OTUs that satisfy this condition 
+physeq_filt <- prune_taxa(taxa_sums(physeq_filt) > otu_nr_cutoff & taxa_sums(physeq_filt) >= min_samples, physeq_filt)
+physeq_filt
+
+#remove otus that occur only rarely (v2)
+#here, we count the number of samples where the abundance of an otu is > 0. 
+#If this count is greater than the specified otu_nr_cutoff, the taxon is retained.
+#physeq_filt <- filter_taxa(physeq, function (x) {sum(x > 0) > otu_nr_cutoff}, prune=TRUE)
+#physeq_filt
+
+#remove otus that occur only rarely (v3)
+#here, we remove taxa not seen more than 1 times in at least 10% of the samples
+#physeq_filt = filter_taxa(physeq, function(x) sum(x > 1) > (0.1*length(x)), TRUE)
+#physeq_filt
+```
+Next, we can calculate the summary statistics with the custom `taxa_sums` function we have defined before:
+
+```{r}
+#calculate the number of reads found per otu
+reads_per_OTU_filt <- taxa_sums(physeq_filt)
+
+#summarize the data
+print_summary(reads_per_OTU_filt)
+```
+
+
+
+## Normalize data
+
+Below, we generate three new phyloseq objects using three different normalization approaches:
+1. Compositional: transforms the data into relative abundance
+2. CLR: stands for centerd log-ratio transform and allows us to compare proportions of OTUs within each sample. After this transformation the values will no longer be counts, but rather the dominance (or lack thereof) for each taxa relative to the geometric mean of all taxa on the logarithmic scale
+3. Rarefaction: scales all of your reads down to the lowest total sequencing depth. Notice, that this might drop many OTUs in higher read samples and might lead to under-estimation of low-abundant OTUs
+
+Generating different phyloseq objects for different normalization approaches allows us to easily compare analysis steps with different inputs. 
+
+```{r, message=FALSE}
+physeq_rel_abundance <- microbiome::transform(physeq_filt, "compositional")
+physeq_clr <- microbiome::transform(physeq_filt, "clr")
+physeq_rarified <- rarefy_even_depth(physeq_filt)
+```
+
+
+## Data exploration
+
+### Rarefaction
+
+Rarefactions illustrate how well your sample was sampled. The rarefaction function takes a random subsample of each column in your OTU table of a given size, starting with a very small subsample, and counts how many unique OTUs were observed in that subsample. The analysis is repeated with increasing subsample sizes until the maximum actual read depth for your table is reached. 
+
+In an ideal dataset, each curve should reach a plateau, i.e. horizontal asymptote, ideally around the same depth. While this almost never is the case, exploring these graphs gives us an idea how well each sample was sampled.
+
+
+```{r}
+#create a df from our otu table
+df <- as.data.frame(otu_table(physeq_filt))
+
+#rarefy data with a step size of 50, using tidy = TRUE will return a dataframe instead of a plot
+df_rate <- rarecurve(t(df), step=50, cex=0.5, label = FALSE, tidy = TRUE)
+
+#add metadata
+df_rate <- merge(df_rate, metadata_combined, by.x = "Site", by.y = "sample_id")
+
+#plot
+df_rate %>%
+  group_by(Site) %>%
+  mutate(max_sample = max(Sample)) %>%
+  mutate(label = if_else(Sample == max_sample, as.character(Site), NA_character_)) %>%
+  ggplot(aes(x = Sample, y = Species, color = Carbon_source, group = interaction(Site, Carbon_source))) + 
+  geom_line() + 
+  facet_grid(cols = vars(Carbon_source)) +
+  geom_text(aes(label = label),
+            position = position_nudge(x = 2000),
+            na.rm = TRUE, size = 3) +
+  custom_theme()
+
+```
+
+In this example we can see that almost none of the sample reach a plateau, RH is the closest but not there yet. This suggests that we mainly sampled the abundant members of our community and might miss many rare taxa. This is something to keep in mind for other analyses, such as alpha diversity analyses.
+
+
+
+### Alpha diversity
+
+Alpha diversity measures the diversity within our sample and we distinguish between species richness (i.e. the number of species) and species richness (i.e. how relatively abundant each of the species are). 
+
+```{r, message=FALSE}
+#calculate different alpha diversity indicators
+richness_meta <-microbiome::alpha(physeq_filt, index = "all")
+
+#add the sample id to table
+richness_meta$sample_id <- rownames(richness_meta)
+
+#add other metadata data
+richness_meta  <- merge(richness_meta, metadata_combined, by = "sample_id")
+
+#check what parameters are calculated
+colnames(richness_meta)
+```
+
+Next, we can generate a plot. Since we calculated the diversity estimates after removing singletons, we will look at evenness indices, such as the Shannon index.
+
+```{r}
+#generate figure
+alpha_plot <-
+  ggplot(richness_meta, aes(x = Carbon_source, y = chao1)) +
+    geom_boxplot() +
+    geom_jitter(aes(color = Practical_group), width = 0.2, size = 4) +
+    labs(x = "", y = "Chao1 index") +
+    custom_theme() +
+    theme(axis.title.y = element_text(size = 20),
+          axis.text.x = element_text(size = 20),
+          axis.text.y = element_text(size = 14),
+          legend.key=element_blank(), 
+          legend.text = element_text(size=14),
+          legend.title = element_text(size=20)
+          ) 
+
+alpha_plot
+
+#save the figure to our computer
+#ggsave(paste0("results/plots/alpha-div.png"), plot=alpha_plot, device="png")
+```
+We see that there is not a difference in terms of species evenness when comparing our different samples.
+
+
+
+
+### Beta diversity
+
+In contrast to alpha diversity, beta diversity quantifies the dissimilarity between communities (multiple samples).
+
+Commonly used metrics include:
+- the Bray-Curtis index (for compositional/abundance data)
+- Jaccard index (for presence/absence data, ignoring abundance information)
+- Aitchison distance (Euclidean distance for clr transformed abundances, aiming to avoid the compositionality bias)
+- Unifrac distance (that takes into account the phylogenetic tree information)
+- ...
+
+Avoid methods that use Euclidean distance as microbiome data are sparse datasets and better suited for the above mentioned methods.
+
+Based on the type of algorithm, ordination methods can be divided in two categories: 
+- unsupervised, which measure variation in the data without additional information on covariates or other supervision of the model, including:
+  - Principal Coordinate Analysis (PCoA)
+  - Principal Component Analysis (PCA) 
+  - Uniform Manifold Approximation and Projection for Dimension Reduction (UMAP)
+- supervised ordination:
+  - distance-based Redundancy Analysis (dbRDA)
+
+
+#### Bray-Curtis
+
+For Bray-Curtis our data should not have negative entries, so we will use the relative abundance (or rarefied) data:
+
+```{r}
+#convert otu table to df
+data_otu_filt_rar <- t(data.frame(otu_table(physeq_rarified)))
+
+#calculate bray-curtis 
+dist_bc <- as.matrix(vegdist(data_otu_filt_rar, method = "bray")) 
+
+# calculate PCOA using Phyloseq package
+pcoa_bc <- ordinate(physeq_rarified, "PCoA", "bray") 
+
+plot_ordination(physeq_rarified, pcoa_bc, color = "Carbon_source", shape = "Practical_group") + 
+  geom_point(size = 3) +
+  custom_theme()
+```
+
+First, this two-dimensions PCOA plot show 34% of the total variance between the samples. Next, we see that the our samples are not forming distinct clusters, i.e. microbiomes from the mixed, paper and wood communities appear very similar.
+
+Next, we can do a statistical test:
+
+```{r}
+#extract metdatatas
+metadata2 <- data.frame(meta(physeq_rarified))
+  
+# Permanova test using the vegan package
+adonis2(data_otu_filt_rar~Carbon_source, data = metadata2, permutations=9999, method="bray")
+```
+
+This confirms that there do not seem to be any statistically significant differences between our samples.
+
+
+### Aitchison
+
+Next, we generate a beta-diversity ordination using the Aitchison distance. We do this by applying PCA to the centered log-ratio (CLR) transformed counts.
+
+
+```{r}
+#PCA via phyloseq
+#RDA without constraints is a PCA
+ord_clr <- phyloseq::ordinate(physeq_clr, "RDA", distance = "euclidian")
+
+#Plot scree plot to plot eigenvalues, i.e.the total amount of variance that can be explained by a given principal componen
+phyloseq::plot_scree(ord_clr) + 
+  geom_bar(stat="identity", fill = "blue") +
+  custom_theme() +
+  labs(x = "\nAxis", y = "Proportion of Variance\n")
+```
+
+```{r, warning=FALSE}
+#Scale axes
+clr1 <- ord_clr$CA$eig[1] / sum(ord_clr$CA$eig)
+clr2 <- ord_clr$CA$eig[2] / sum(ord_clr$CA$eig)
+
+#and plot
+phyloseq::plot_ordination(physeq_clr, ord_clr, color = "Carbon_source", shape = "Practical_group") + 
+  geom_point(size = 2,) +
+  coord_fixed(clr2 / clr1) +
+  stat_ellipse(aes(group = Carbon_source), linetype = 2) +
+  custom_theme() 
+
+```
+
+
+While PCA is an exploratory data visualization tool, we can test whether the samples cluster beyond that expected by sampling variability using permutational multivariate analysis of variance (PERMANOVA). It does this by partitioning the sums of squares for the within- and between-cluster components using the concept of centroids. Many permutations of the data (i.e. random shuffling) are used to generate the null distribution. The test from ADONIS can be confounded by differences in dispersion (or spread)…so we want to check this as well. 
+
+```{r, message=FALSE, warning=FALSE}
+#Generate distance matrix
+clr_dist_matrix <- phyloseq::distance(physeq_clr, method = "euclidean") 
+
+#ADONIS test
+adonis2(clr_dist_matrix~Carbon_source, data = metadata2, permutations=9999, method="bray")
+```
+
+
+
+### Taxonomic distribution
+
+Next, we want to plot the taxa distribution. Let us first look at the most abundant phyla and check how similar our different samples are:
+
+```{r, message=FALSE, warning=FALSE}
+#condense data at specific tax rank, i.e. on phylum level
+grouped_taxa <- tax_glom(physeq_rel_abundance, "Phylum")
+  
+#find top19 most abundant taxa 
+top_taxa <- names(sort(taxa_sums(grouped_taxa), TRUE)[1:19])
+
+#make a list for the remaining taxa
+other_taxa <- names(taxa_sums(grouped_taxa))[which(!names(taxa_sums(grouped_taxa)) %in% top_taxa)]
+
+#group the low abundant taxa into one group
+merged_physeq = merge_taxa(grouped_taxa, other_taxa, 2)
+  
+#transform phyloseq object into dataframe
+df <- psmelt(merged_physeq)
+
+#cleanup the names in the df
+names(df)[names(df) == "Phylum"] <- "tax_level"
+
+#replace NAs, with other (NAs are generated for the other category)
+df$tax_level[which(is.na(df$tax_level))] <- "Other"
+  
+#create a df to sort taxa labels by abundance
+sorted_labels <- df |> 
+  group_by(tax_level) |> 
+  summarise(sum = sum(Abundance)) |> 
+  arrange(desc(sum))
+  
+#Get list of sorted levels excluding "Other"
+desired_levels <- setdiff(sorted_labels$tax_level, "Other")
+  
+#sort df using the sorted levels and ensure that "Other" is the last category
+df$tax_level2 <- factor(df$tax_level, levels = c(desired_levels, "Other"))
+  
+#generate color scheme
+cols <- c25[1:length(unique(df$tax_level2))]
+cols[levels(df$tax_level2) == "Other"] <- "#CCCCCC"
+  
+#plot
+fig <-
+  ggplot(df, aes(x = Sample, y = Abundance, fill = tax_level2) ) +
+    geom_bar(position = "stack", stat = "identity", width = 0.9) +
+    labs(y = "Relative abundance", x = "", title = paste0("Relative abundance at ", "Phylum", " rank")) +
+    scale_fill_manual(name = paste0("Phylum","_rank"), labels = levels(df$tax_level2), values = cols) +
+    facet_grid(cols =  vars(Carbon_source), scales = "free", space = "free") +
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 1.01)) +
+    custom_theme() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1 ) ) +
+    guides(fill=guide_legend(title = "Phylum"))
+
+fig
+```
+
+Since we want to generate one plot for each taxonomic rank, i.e. Phylum, Class, Order,..., we can do this in a loop. The figures will be generated in the folder `results/plots/`. 
+
+If you do not feel comfortable with a lob, you can also do this step by step by removing the for statement and replacing all instances of `level` with the taxonomic rank you want to investigate
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE}
+#if not there already, create output folder
+img_path="../results/r_analyses/images/"
+dir.create(img_path, recursive = TRUE)
+
+#generate one barplot for each taxonomic level
+for (level in colnames(taxonomy_file)){
+  
+  #condense data at specific tax rank, i.e. on phylum level
+  grouped_taxa <- tax_glom(physeq_rel_abundance, level)
+  
+  #find top19 most abundant taxa 
+  top_taxa <- names(sort(taxa_sums(grouped_taxa), TRUE)[1:19])
+  
+  #make a list for the remaining taxa
+  other_taxa <- names(taxa_sums(grouped_taxa))[which(!names(taxa_sums(grouped_taxa)) %in% top_taxa)]
+  
+  #group the low abundant taxa into one group
+  merged_physeq = merge_taxa(grouped_taxa, other_taxa, 2)
+  
+  #transform phyloseq object into dataframe
+  df <- psmelt(merged_physeq) 
+  
+  #cleanup the dataframe
+  names(df)[names(df) == level] <- "tax_level"
+  df$tax_level[which(is.na(df$tax_level))] <- "Other"
+  
+  #create a df to sort taxa labels by abundance
+  sorted_labels <- df |> 
+    group_by(tax_level) |> 
+    summarise(sum = sum(Abundance)) |> 
+    arrange(desc(sum))
+  
+  #Get list of sorted levels excluding "Other"
+  desired_levels <- setdiff(sorted_labels$tax_level, "Other")
+  
+  #sort df using the sorted levels and ensure that "Other" is the last category
+  df$tax_level2 <- factor(df$tax_level, levels = c(desired_levels, "Other"))
+  
+  #generate color scheme
+  cols <- c25[1:length(unique(df$tax_level2))]
+  cols[levels(df$tax_level2) == "Other"] <- "#CCCCCC"
+  
+  #plot
+  fig <-
+    ggplot(df, aes(x = Sample, y = Abundance, fill = tax_level2) ) +
+      geom_bar(position = "stack", stat = "identity", width = 0.9) +
+      labs(y = "Relative abundance", x = "", title = paste0("Relative abundance at ", level, " rank")) +
+      scale_fill_manual(name = paste0(level,"_rank"), labels = levels(df$tax_level2), values = cols) +
+      facet_grid(cols =  vars(Carbon_source), scales = "free", space = "free") +
+      scale_y_continuous(expand = c(0, 0), limits = c(0, 1.01)) +
+      custom_theme() +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1 ) ) +
+      guides(fill=guide_legend(title=level))
+  
+  ggsave(paste0(img_path, level, "_barplot_ra.png"), plot = fig, device="png")
+  }
+
+```
+
+Generated plots:
+
+::: {layout-ncol=2}
+![](../results/r_analyses/images/Phylum_barplot_ra.png)
+![](../results/r_analyses/images/Order_barplot_ra.png)
+
+![](../results/r_analyses/images/Class_barplot_ra.png)
+![](../results/r_analyses/images/Family_barplot_ra.png)
+:::
+
+
+
+### Differential abundance testing
+
+Notice: This is still in development and needs to be optimized, use with care!
+
+
+
+#### Two-factor testing
+
+First, let us compare for differences for a category where we compare two factors. For example, we might want to ask whether there are any significant differences when comparing our wood versus paper samples.
+
+Let's first tes test this using the non-parametric Wilcoxon rank-sum test.
+
+```{r}
+#Generate data.frame with OTUs and metadata
+ps_wilcox <- data.frame(t(data.frame(phyloseq::otu_table(physeq_clr))), check.names = FALSE)
+ps_wilcox$Carbon_source <- phyloseq::sample_data(physeq_clr)$Carbon_source
+
+#Define functions to pass to map
+wilcox_model <- function(df){
+  wilcox.test(abund ~ Carbon_source, data = df)
+}
+
+wilcox_pval <- function(df){
+  wilcox.test(abund ~ Carbon_source, data = df)$p.value
+}
+
+#Create nested data frames by OTU and loop over each using map 
+wilcox_results <- ps_wilcox %>%
+  gather(key = OTU, value = abund, -Carbon_source) %>%
+  group_by(OTU) %>%
+  nest() %>%
+  mutate(wilcox_test = map(data, wilcox_model),
+         p_value = map(data, wilcox_pval))  
+
+#Show results
+wilcox_results$wilcox_test[[1]]
+```
+
+
+We can also test for differences per OTU:
+
+```{r}
+#Unnesting
+wilcox_results <- wilcox_results %>%
+  dplyr::select(OTU, p_value) %>%
+  unnest(cols = c(p_value))
+
+head(wilcox_results)
+
+#Computing FDR corrected p-values (since we do multiple statistical comparisons)
+wilcox_results <- wilcox_results %>%
+  arrange(p_value) %>%
+  mutate(BH_FDR = p.adjust(p_value, "BH")) %>%
+  filter(BH_FDR < 0.001) %>%
+  dplyr::select(OTU, p_value, BH_FDR, everything())
+
+head(wilcox_results)  
+```
+
+Wilcoxon has some down-sites when it comes to treating zero values, an alternative approach is to use the ANOVA-like differential expression (ALDEx2) method. The aldex function is a wrapper that performs log-ratio transformation and statistical testing in a single line of code, which is why we feed the non-normalized data into it:
+
+
+```{r}
+aldex2_da <- ALDEx2::aldex(data.frame(phyloseq::otu_table(physeq_filt)), phyloseq::sample_data(physeq_filt)$Carbon_source, test="t", effect = TRUE, denom="iqlr")
+```
+
+Specifically, this function: 
+
+(a) generates Monte Carlo samples of the Dirichlet distribution for each sample, 
+(b) converts each instance using a log-ratio transform,  
+(c) returns test results for two sample (Welch's t, Wilcoxon) or multi-sample (glm, Kruskal-Wallace) tests.
+
+iqlr" accounts for data with systematic variation and centers the features on the set features that have variance that is between the lower and upper quartile of variance. This provides results that are more robust to asymmetric features between groups.
+
+Next, we can plot the effect size. The effect size plot shows the median log2 fold difference by the median log2 dispersion. This is a measure of the effect size by the variability. Differentially abundant taxon will be those where the difference most exceeds the dispersion. Points toward the top of the figure are more abundant in CF samples while those towards the bottom are more abundant in healthy controls. Taxa with BH-FDR corrected p-values are shown in red. 
+
+```{r}
+#plot effect sizes
+ALDEx2::aldex.plot(aldex2_da, type="MW", test="wilcox", called.cex = 1, cutoff.pval = 0.001)
+```
+
+Finally, we can print the output with the taxa information added.
+
+```{r}
+#Clean up presentation
+sig_aldex2 <- aldex2_da %>%
+  rownames_to_column(var = "OTU") %>%
+  filter(wi.eBH < 0.05) %>%
+  arrange(effect, wi.eBH) %>%
+  dplyr::select(OTU, diff.btw, diff.win, effect, wi.ep, wi.eBH)
+
+head(sig_aldex2)
+```
+
+In our case an empty dataframe is returned, no significant differences were detected.
+
+
+#### DESeq2
+
+DESeq2 performs a differential expression analysis based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution. DeSeq normalizes the data throughout its analysis, so we input only the filtered data. For more theory, visit this [page](https://uclouvain-cbio.github.io/WSBIM2122/sec-rnaseq.html).
+
+```{r}
+#convert treatment column to a factor
+sample_data(physeq_filt)$Carbon_source <- as.factor(sample_data(physeq_filt)$Carbon_source)
+
+#Convert the phyloseq object to a DESeqDataSet and run DESeq2:
+ds <- phyloseq_to_deseq2(physeq_filt, ~ Carbon_source)
+
+#since our samples contain a lot of 0s (something DeSeq is NOT designed for) we use some alternative means to estimate the size factor
+ds <-estimateSizeFactors(ds, type = 'poscounts')
+ds <- DESeq(ds)
+
+#extract the results and filter by a FDR cutoff of 0.01 and
+#find significantly differentially abundant OTU between the seasons “paper” and “wood”
+alpha = 0.001
+res_desq = results(ds, contrast=c("Carbon_source", "paper", "wood"), alpha=alpha)
+res_desq = res_desq[order(res_desq$padj, na.last=NA), ]
+res_sig_deseq = as.data.frame(res_desq[(res_desq$padj < alpha), ])
+
+#print number of significant results
+dim(res_sig_deseq)
+```
+
+
+Plot significant OTUs (counts):
+
+```{r}
+df <- cbind(as.data.frame(as(tax_table(physeq_filt)[rownames(res_sig_deseq), ], "matrix")),as.data.frame(as(otu_table(physeq_filt)[rownames(res_sig_deseq), ], "matrix")))
+
+df_long <- reshape2::melt(df)
+df_long <- merge(df_long, metadata2, by.x = "variable", by.y = "sample_id")
+
+ggplot(df_long, aes(x=Genus, y=value, color = Carbon_source)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(position = position_jitterdodge(jitter.width=0.1), size = 0.9)  +
+  custom_theme() +
+  scale_color_manual(values = c( "orange", "purple")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+
+
+```{r}
+df <- cbind(as.data.frame(as(tax_table(physeq_rel_abundance)[rownames(res_sig_deseq), ], "matrix")),as.data.frame(as(otu_table(physeq_rel_abundance)[rownames(res_sig_deseq), ], "matrix")))
+
+df_long <- reshape2::melt(df)
+df_long <- merge(df_long, metadata2, by.x = "variable", by.y = "sample_id")
+
+ggplot(df_long, aes(x=Genus, y=value, color = Carbon_source)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(position = position_jitterdodge(jitter.width=0.1), size = 0.9)  +
+  custom_theme() +
+  scale_color_manual(values = c("orange", "purple")) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+
+
+
+#### ANCOM
+
+```{r}
+# Run ancom-bc2
+# Settings:
+# prv_cut: a numerical fraction between 0 and 1. Taxa with prevalences less than prv_cut will be excluded in the analysis
+# a numerical threshold for filtering samples based on library sizes. Samples with library sizes less than lib_cut
+ancom_out = ancombc2(data = physeq_filt,
+               fix_formula = "Carbon_source",
+               rand_formula = NULL,
+               p_adj_method = "holm", 
+               pseudo_sens = FALSE,  #FALSE to speed things up for testing, but makes things less sensitive
+               prv_cut = 0.10, lib_cut = 1000, s0_perc = 0.05,
+               group = "Carbon_source",
+               alpha = 0.05, n_cl = 2, verbose = TRUE,
+               global = TRUE)
+
+res_ancom = ancom_out$res
+
+res_f_fig = res_ancom %>%
+    dplyr::filter(diff_Carbon_sourcewood == TRUE) %>% 
+    dplyr::arrange(desc(lfc_Carbon_sourcewood)) %>%
+    dplyr::mutate(direct = ifelse(lfc_Carbon_sourcewood > 0, "Positive LFC", "Negative LFC"),
+                  color = ifelse(lfc_Carbon_sourcewood > 0, "aquamarine3", "black"))
+
+res_f_fig$taxon = factor(res_f_fig$taxon, levels = res_f_fig$taxon)
+res_f_fig$direct = factor(res_f_fig$direct, 
+                           levels = c("Positive LFC", "Negative LFC"))
+
+fig_ancom = res_f_fig %>%
+    ggplot(aes(x = lfc_Carbon_sourcewood, y = taxon, fill = direct)) + 
+    geom_bar(stat = "identity", width = 0.7, color = "black", 
+             position = position_dodge(width = 0.4)) +
+    geom_errorbar(aes(xmin = lfc_Carbon_sourcewood - se_Carbon_sourcewood, xmax = lfc_Carbon_sourcewood + se_Carbon_sourcewood), 
+                  width = 0.2, position = position_dodge(0.05), color = "black") + 
+    labs(y = NULL, x = "Log fold change Wood versus carbon", 
+         title = "Log fold changes") + 
+    scale_fill_discrete(name = NULL) +
+    scale_color_discrete(name = NULL) +
+    custom_theme() + 
+    theme(plot.title = element_text(hjust = 0.5),
+          panel.grid.minor.y = element_blank(),
+          axis.text.y = element_text(size=6))
+fig_ancom
+```
+
+#### Vendiagram
+
+```{r}
+x <- list(
+  ancom = as.character(res_f_fig$taxon), 
+  deseq = as.character(rownames(res_sig_deseq)), 
+  wilcox = as.character(wilcox_results$OTU),
+  aldex = sig_aldex2$OTU
+  )
+
+ggvenn(
+  x, 
+  fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF", "#CD534CFF"),
+  stroke_size = 0.5, set_name_size = 4
+  )
+
+# Get intersection
+v_table <- venn(x, show.plot=FALSE)
+intersections<-attr(v_table,"intersections")
+sig_otus_ven <- intersections$`ancom:deseq:wilcox:aldex`
+
+# Plot
+df <- cbind(as.data.frame(as(tax_table(physeq_filt)[sig_otus_ven, ], "matrix")),as.data.frame(as(otu_table(physeq_filt)[sig_otus_ven, ], "matrix")))
+
+df_long <- reshape2::melt(df)
+df_long <- merge(df_long, metadata2, by.x = "variable", by.y = "sample_id")
+
+ggplot(df_long, aes(x=Genus, y=value, color = Carbon_source)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(position = position_jitterdodge(jitter.width=0.1), size = 0.9)  +
+  custom_theme() +
+   facet_wrap(~Genus, scales = "free") +
+  scale_color_manual(values = c( "orange", "purple")) +
+  theme(axis.text.x = element_text())
+
+```
+

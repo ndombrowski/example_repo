@@ -1,0 +1,4 @@
+On this page you can find documentation about the workflow to:
+
+- Classify 16S amplicon sequences
+- Analyse the data using R
