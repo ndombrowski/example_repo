@@ -21,7 +21,7 @@ website:
 
     - section: "Data analysis"
       contents:
-        - text: "Code documentation"
+        - text: Sequence classification"
           href: scripts/nanoclass_workflow.qmd
 
         - text: "OTU table analysis"

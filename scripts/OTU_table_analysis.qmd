@@ -492,8 +492,7 @@ metadata2 <- data.frame(meta(physeq_rarified))
 adonis2(data_otu_filt_rar~Carbon_source, data = metadata2, permutations=9999, method="bray")
 ```
 
-This confirms that there do not seem to be any statistically significant differences between our samples.
-
+There seems to be a difference between our samples.
 
 ### Aitchison
 
@@ -525,9 +524,6 @@ phyloseq::plot_ordination(physeq_clr, ord_clr, color = "Carbon_source", shape = 
   custom_theme() 
 
 ```
-
-
-While PCA is an exploratory data visualization tool, we can test whether the samples cluster beyond that expected by sampling variability using permutational multivariate analysis of variance (PERMANOVA). It does this by partitioning the sums of squares for the within- and between-cluster components using the concept of centroids. Many permutations of the data (i.e. random shuffling) are used to generate the null distribution. The test from ADONIS can be confounded by differences in dispersion (or spread)…so we want to check this as well. 
 
 ```{r, message=FALSE, warning=FALSE}
 #Generate distance matrix
@@ -682,7 +678,7 @@ Notice: This is still in development and needs to be optimized, use with care!
 
 First, let us compare for differences for a category where we compare two factors. For example, we might want to ask whether there are any significant differences when comparing our wood versus paper samples.
 
-Let's first tes test this using the non-parametric Wilcoxon rank-sum test.
+Let's first test this using the non-parametric Wilcoxon rank-sum test.
 
 ```{r}
 #Generate data.frame with OTUs and metadata
@@ -766,7 +762,7 @@ sig_aldex2 <- aldex2_da %>%
 head(sig_aldex2)
 ```
 
-In our case an empty dataframe is returned, no significant differences were detected.
+If an empty dataframe is returned, no significant differences were detected.
 
 
 #### DESeq2
@@ -813,6 +809,7 @@ ggplot(df_long, aes(x=Genus, y=value, color = Carbon_source)) +
 
 ```
 
+Plot significant OTUs (relative abundance):
 
 
 ```{r}
