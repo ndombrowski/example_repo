@@ -4662,7 +4662,7 @@ vertical-align: -.125em;
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../code/nanoclass_workflow.html">Classify Winogradksy samples</a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../code/nanoclass_workflow.html">Workflow for sequence classification</a></li></ol></nav>
         <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label onclick="window.quartoOpenSearch();">
@@ -4690,7 +4690,7 @@ vertical-align: -.125em;
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
   <a href="../code/nanoclass_workflow.html" class="sidebar-item-text sidebar-link active">
- <span class="menu-text">Classify Winogradksy samples</span></a>
+ <span class="menu-text">Workflow for sequence classification</span></a>
   </div>
 </li>
     </ul>
@@ -4699,20 +4699,27 @@ vertical-align: -.125em;
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#classify-winogradksy-samples" id="toc-classify-winogradksy-samples" class="nav-link active" data-scroll-target="#classify-winogradksy-samples">Classify Winogradksy samples</a>
+  <li><a href="#workflow-for-sequence-classification" id="toc-workflow-for-sequence-classification" class="nav-link active" data-scroll-target="#workflow-for-sequence-classification">Workflow for sequence classification</a>
   <ul class="collapse">
   <li><a href="#project-description" id="toc-project-description" class="nav-link" data-scroll-target="#project-description">Project description</a></li>
+  <li><a href="#dependencies" id="toc-dependencies" class="nav-link" data-scroll-target="#dependencies">Dependencies</a></li>
   <li><a href="#folder-setup" id="toc-folder-setup" class="nav-link" data-scroll-target="#folder-setup">Folder setup</a></li>
   <li><a href="#prepare-input-files" id="toc-prepare-input-files" class="nav-link" data-scroll-target="#prepare-input-files">Prepare input files</a>
   <ul class="collapse">
   <li><a href="#inspect-data" id="toc-inspect-data" class="nav-link" data-scroll-target="#inspect-data">Inspect data</a></li>
   <li><a href="#combine-individual-files" id="toc-combine-individual-files" class="nav-link" data-scroll-target="#combine-individual-files">Combine individual files</a></li>
+  </ul></li>
+  <li><a href="#do-quality-control" id="toc-do-quality-control" class="nav-link" data-scroll-target="#do-quality-control">Do quality control</a>
+  <ul class="collapse">
   <li><a href="#calculate-read-counts" id="toc-calculate-read-counts" class="nav-link" data-scroll-target="#calculate-read-counts">Calculate read counts</a></li>
   <li><a href="#generate-summary-statistics" id="toc-generate-summary-statistics" class="nav-link" data-scroll-target="#generate-summary-statistics">Generate summary statistics</a></li>
+  </ul></li>
+  <li><a href="#run-nanoclass2" id="toc-run-nanoclass2" class="nav-link" data-scroll-target="#run-nanoclass2">Run NanoClass2</a>
+  <ul class="collapse">
   <li><a href="#prepare-the-mapping-file" id="toc-prepare-the-mapping-file" class="nav-link" data-scroll-target="#prepare-the-mapping-file">Prepare the mapping file</a></li>
   <li><a href="#prepare-the-config-file" id="toc-prepare-the-config-file" class="nav-link" data-scroll-target="#prepare-the-config-file">Prepare the config file</a></li>
+  <li><a href="#run-nanoclass2-1" id="toc-run-nanoclass2-1" class="nav-link" data-scroll-target="#run-nanoclass2-1">Run NanoClass2</a></li>
   </ul></li>
-  <li><a href="#run-nanoclass" id="toc-run-nanoclass" class="nav-link" data-scroll-target="#run-nanoclass">Run NanoClass</a></li>
   </ul></li>
   </ul>
 </nav>
@@ -4727,11 +4734,12 @@ vertical-align: -.125em;
 
 
 
-<section id="classify-winogradksy-samples" class="level1">
-<h1>Classify Winogradksy samples</h1>
+<section id="workflow-for-sequence-classification" class="level1">
+<h1>Workflow for sequence classification</h1>
 <section id="project-description" class="level2">
 <h2 class="anchored" data-anchor-id="project-description">Project description</h2>
-<p>NanoClass2 is used to classify 16S rRNA amplicon sequences from 21 samples. DNA samples were taken from Winogradksy columns with wood or paper as substrate. For each substrate 3 independent columns were sampled and for each columns there are 3-4 replicates. DNA was sampled on two days, by two different groups of students (i.e. Practical_groups 1 and 2):</p>
+<p>NanoClass2 is used to classify 16S rRNA amplicon sequences from 21 samples. DNA samples were taken from Winogradksy columns with wood or paper as substrate.</p>
+<p>For each substrate 3 independent columns were sampled and for each columns there are 3-4 replicates. DNA was sampled on two days, by two different groups of students (i.e. Practical_groups 1 and 2):</p>
 <table class="table">
 <thead>
 <tr class="header">
@@ -4893,55 +4901,64 @@ vertical-align: -.125em;
 </tbody>
 </table>
 </section>
+<section id="dependencies" class="level2">
+<h2 class="anchored" data-anchor-id="dependencies">Dependencies</h2>
+<ul>
+<li>python v3.10.12</li>
+<li>sed (GNU sed) 4.5</li>
+<li>GNU Awk 4.2.1, API: 2.0 (GNU MPFR 3.1.6-p2, GNU MP 6.1.2)</li>
+<li>seqkit v2.7.0</li>
+<li>Nanoplot v1.42.0</li>
+<li>NanoClass2 v0.1</li>
+</ul>
+</section>
 <section id="folder-setup" class="level2">
 <h2 class="anchored" data-anchor-id="folder-setup">Folder setup</h2>
-<p>First, setup a working directory on Crunchomics and move the sequencing data there.</p>
+<p>Data was analysed on the Uva Crunchomics HPC:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Go to working directory (on Crunchomics HPC)</span></span>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Go to working directory</span></span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="va">wdir</span><span class="op">=</span><span class="st">&quot;/home/ndombro/personal/teaching/2024/miceco&quot;</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> <span class="va">$wdir</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Upload sequencing data from local PC to Crunchomics</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> data </span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">scp</span> data/mic2024.zip crunchomics:/home/ndombro/personal/teaching/2024/miceco/data</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> <span class="va">$wdir</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="prepare-input-files" class="level2">
 <h2 class="anchored" data-anchor-id="prepare-input-files">Prepare input files</h2>
 <section id="inspect-data" class="level3">
 <h3 class="anchored" data-anchor-id="inspect-data">Inspect data</h3>
-<p>First, let us inspect what we have for each sample:</p>
+<p>We work with the following data:</p>
+<ul>
+<li>Sequencing data was provided as zipped folder by Peter Kuperus Oktober 22, 2024 via SurfDrive.</li>
+<li>The file <code>filelists/barcode_to_sample</code> was generated manually from the mapping file provided by Gerard Muyzer and links the barcode to the sample ID.</li>
+</ul>
+<p>The data was uploaded to Crunchomics and the barcode IDs were extracted from the file names to be able to loop through individual samples:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> filelists </span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Unzip data folder</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">unzip</span> data/mic2024.zip</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> mic2024 data</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Make a list of barcode to Day</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> data/mic2024/<span class="pp">*</span>/fastq_pass/barcode<span class="pp">*</span>/<span class="pp">*</span>fastq.gz <span class="kw">|</span> <span class="dt">\</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cut</span> <span class="at">-f3,5</span> <span class="at">-d</span> <span class="st">&quot;/&quot;</span> <span class="kw">|</span> <span class="dt">\</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">awk</span> <span class="at">-F</span> <span class="st">&quot;/&quot;</span> <span class="st">&#39;{print $2 &quot;\t&quot; $1}&#39;</span> <span class="kw">|</span> <span class="dt">\</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sort</span> <span class="at">-u</span> <span class="op">&gt;</span> filelists/barcode_to_date.txt</span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Make a list of barcodes</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> data/mic2024/<span class="pp">*</span>/fastq_pass/barcode<span class="pp">*</span>/<span class="pp">*</span>fastq.gz <span class="kw">|</span> <span class="dt">\</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sed</span> <span class="st">&#39;s/.*barcode\([0-9]\+\).*/barcode\1/&#39;</span> <span class="dt">\</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-u</span> <span class="op">&gt;</span> filelists/barcodes.txt</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="co"># We work with so many barcodes: 21</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="fu">wc</span> <span class="at">-l</span> filelists/barcodes.txt</span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="co">#create a list of barcodes we work with (based on the excel sheet)</span></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="co">#nano filelists/barcodes.txt</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Count number of files we work with per barcode</span></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="kw">`</span><span class="fu">cat</span> filelists/barcodes.txt<span class="kw">`;</span> <span class="cf">do</span></span>
-<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    <span class="va">count</span><span class="op">=</span><span class="va">$(</span><span class="kw">(</span><span class="ex">ll</span> data/mic2024/<span class="pp">*</span>/fastq_pass/<span class="va">${i}</span>/<span class="pp">*</span>fastq.gz<span class="kw">)</span> <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span><span class="va">)</span></span>
-<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">&quot;Barcode </span><span class="va">${i}</span><span class="st"> has </span><span class="va">${count}</span><span class="st"> fastq files&quot;</span></span>
-<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Make data folders</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> data </span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> filelists </span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Upload sequencing data from local PC to Crunchomics</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">scp</span> data/mic2024.zip crunchomics:/home/ndombro/personal/teaching/2024/miceco/data</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Unzip data folder</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="fu">unzip</span> data/mic2024.zip</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fu">mv</span> mic2024 data</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Make a list of barcodes</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> data/mic2024/<span class="pp">*</span>/fastq_pass/barcode<span class="pp">*</span>/<span class="pp">*</span>fastq.gz <span class="kw">|</span> <span class="dt">\</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sed</span> <span class="st">&#39;s/.*barcode\([0-9]\+\).*/barcode\1/&#39;</span> <span class="dt">\</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">|</span> <span class="fu">sort</span> <span class="at">-u</span> <span class="op">&gt;</span> filelists/barcodes.txt</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co"># We work with so many barcodes: 21</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="fu">wc</span> <span class="at">-l</span> filelists/barcodes.txt</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Count number of files we work with per barcode</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="kw">`</span><span class="fu">cat</span> filelists/barcodes.txt<span class="kw">`;</span> <span class="cf">do</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    <span class="va">count</span><span class="op">=</span><span class="va">$(</span><span class="kw">(</span><span class="ex">ll</span> data/mic2024/<span class="pp">*</span>/fastq_pass/<span class="va">${i}</span>/<span class="pp">*</span>fastq.gz<span class="kw">)</span> <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span><span class="va">)</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">echo</span> <span class="st">&quot;Barcode </span><span class="va">${i}</span><span class="st"> has </span><span class="va">${count}</span><span class="st"> fastq files&quot;</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>Results</strong></p>
+<p>We work with 21 barcodes and for each barcode we work with several fastq.gz files:</p>
 <pre><code>Barcode barcode01 has 145 fastq files
 Barcode barcode02 has 145 fastq files
 Barcode barcode03 has 145 fastq files
@@ -4981,10 +4998,12 @@ Barcode barcode24 has 144 fastq files</code></pre>
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span>
 <span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Sanity check: We work with 21 combined files</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co"># If this would be less than what we originally had, then we might want to check for issues</span></span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ex">ll</span> data/combined_data/<span class="pp">*</span> <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="ex">ll</span> data/combined_data/<span class="pp">*</span> <span class="kw">|</span> <span class="fu">wc</span> <span class="at">-l</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
+</section>
+<section id="do-quality-control" class="level2">
+<h2 class="anchored" data-anchor-id="do-quality-control">Do quality control</h2>
 <section id="calculate-read-counts" class="level3">
 <h3 class="anchored" data-anchor-id="calculate-read-counts">Calculate read counts</h3>
 <p>Next, we calculate the read counts before and after combining the individual files. This is useful to know how many reads we work with but also to see whether the merge worked correctly.</p>
@@ -5048,25 +5067,27 @@ Total reads for barcode24 - Before: 6169, After: 6169</code></pre>
 </section>
 <section id="generate-summary-statistics" class="level3">
 <h3 class="anchored" data-anchor-id="generate-summary-statistics">Generate summary statistics</h3>
+<p>Next, we calculate the quality statistics (total read count, average read count, read length, etc) to be able to screen the data for potential issues:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> results/seqkit</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> results/nanoplot</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Run seqkit</span></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="ex">seqkit</span> stats <span class="at">-a</span> <span class="at">-To</span> results/seqkit/seqkit_stats.tsv data/combined_data/<span class="pp">*</span>fastq.gz <span class="at">--threads</span> 10</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate plots to visualize the statistics better</span></span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate nanoplot_1.42.0</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> file <span class="kw">in</span> data/combined_data/<span class="pp">*</span>fastq.gz<span class="kw">;</span> <span class="cf">do</span></span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="va">sample</span><span class="op">=</span><span class="va">$(</span><span class="bu">echo</span> <span class="va">$file</span> <span class="kw">|</span> <span class="fu">cut</span> <span class="at">-d</span> <span class="st">&quot;/&quot;</span> <span class="at">-f3</span> <span class="kw">|</span> <span class="fu">sed</span> <span class="st">&quot;s/\.fastq.gz//g&quot;</span><span class="va">)</span></span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="bu">echo</span> <span class="st">&quot;Starting analysis for &quot;</span><span class="va">$file</span><span class="st">&quot;&quot;</span></span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mkdir</span> results/nanoplot/<span class="st">&quot;</span><span class="va">$sample</span><span class="st">&quot;</span></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  <span class="ex">srun</span> <span class="at">--cpus-per-task</span> 10 <span class="at">--mem</span><span class="op">=</span>50G <span class="dt">\</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    NanoPlot <span class="at">--fastq</span> <span class="va">$file</span> <span class="at">-o</span> results/nanoplot/<span class="st">&quot;</span><span class="va">$sample</span><span class="st">&quot;</span> <span class="at">--threads</span> 10</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> deactivate</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Make data folders</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> results/seqkit</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> results/nanoplot</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Run seqkit</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="ex">seqkit</span> stats <span class="at">-a</span> <span class="at">-To</span> results/seqkit/seqkit_stats.tsv data/combined_data/<span class="pp">*</span>fastq.gz <span class="at">--threads</span> 10</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate plots to visualize the statistics better</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate nanoplot_1.42.0</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> file <span class="kw">in</span> data/combined_data/<span class="pp">*</span>fastq.gz<span class="kw">;</span> <span class="cf">do</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="va">sample</span><span class="op">=</span><span class="va">$(</span><span class="bu">echo</span> <span class="va">$file</span> <span class="kw">|</span> <span class="fu">cut</span> <span class="at">-d</span> <span class="st">&quot;/&quot;</span> <span class="at">-f3</span> <span class="kw">|</span> <span class="fu">sed</span> <span class="st">&quot;s/\.fastq.gz//g&quot;</span><span class="va">)</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  <span class="bu">echo</span> <span class="st">&quot;Starting analysis for &quot;</span><span class="va">$file</span><span class="st">&quot;&quot;</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mkdir</span> results/nanoplot/<span class="st">&quot;</span><span class="va">$sample</span><span class="st">&quot;</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  <span class="ex">srun</span> <span class="at">--cpus-per-task</span> 10 <span class="at">--mem</span><span class="op">=</span>50G <span class="dt">\</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    NanoPlot <span class="at">--fastq</span> <span class="va">$file</span> <span class="at">-o</span> results/nanoplot/<span class="st">&quot;</span><span class="va">$sample</span><span class="st">&quot;</span> <span class="at">--threads</span> 10</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="cf">done</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> deactivate</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>Summary</strong></p>
 <ul>
@@ -5078,13 +5099,19 @@ Total reads for barcode24 - Before: 6169, After: 6169</code></pre>
 </ul></li>
 </ul>
 </section>
-<section id="prepare-the-mapping-file" class="level3">
-<h3 class="anchored" data-anchor-id="prepare-the-mapping-file">Prepare the mapping file</h3>
-<p>To run NanoClass we need:</p>
+</section>
+<section id="run-nanoclass2" class="level2">
+<h2 class="anchored" data-anchor-id="run-nanoclass2">Run NanoClass2</h2>
+<p>NanoClass2 will be used for quality cleaning and to classify the sequence reads for each sample.</p>
+<p>To run NanoClass2 we need:</p>
 <ul>
 <li>The sequence files in fastq.gz format (one file per sample, which we already generated)</li>
 <li>A csv mapping file that lists what samples you want to have analysed and how the samples are named</li>
+<li>A config file in which we specify with what parameters we want to run NanoClass2</li>
+<li>A bash file that allows us to run NanoClass2 on an HPC</li>
 </ul>
+<section id="prepare-the-mapping-file" class="level3">
+<h3 class="anchored" data-anchor-id="prepare-the-mapping-file">Prepare the mapping file</h3>
 <p>The csv mapping file needs to include the following:</p>
 <ul>
 <li>A run name</li>
@@ -5093,12 +5120,12 @@ Total reads for barcode24 - Before: 6169, After: 6169</code></pre>
 <li>The path to your fastq.gz files (should be already demultiplexed)</li>
 <li>Notice: Sample and run labels can only contain letters and numbers</li>
 </ul>
-<p>For our analysis the file looks something like this:</p>
+<p>For this analysis the file looks something like this:</p>
 <pre><code>run,sample,barcode,path
 mic2024,BC01,,/home/ndombro/personal/teaching/2024/miceco/data/combined_data/barcode01.fastq.gz
 mic2024,BC01,,/home/ndombro/personal/teaching/2024/miceco/data/combined_data/barcode02.fastq.gz
 mic2024,BC01,,/home/ndombro/personal/teaching/2024/miceco/data/combined_data/barcode03.fastq.gz</code></pre>
-<p>We could do this in excel, but we can also extract all the info we need from the file path:</p>
+<p>This file can be generatd in excel, but we can also extract all the info we need from the file path:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;run,sample,barcode,path&quot;</span> <span class="op">&gt;</span> filelists/mapping_file.csv</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -5118,17 +5145,18 @@ mic2024,BC01,,/home/ndombro/personal/teaching/2024/miceco/data/combined_data/bar
 <ul>
 <li>The location of your sample mapping file under <code>samples:</code></li>
 <li>The methods you want to use</li>
+<li>The min, max read length to keep</li>
+<li>The quality phred score to keep</li>
 </ul>
-<p>The other file that is useful to have when running NanoClass2 on an HPC is the jobscript.sh, which is pre-configured to submit a job on the Crunchomics server.</p>
-<p>We first get a copy of the config file (and some other useful files):</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cp</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/jobscript.sh .</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cp</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/config.yaml .</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Copy the required files from the NanoClass2 software folder</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cp</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/jobscript.sh .</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cp</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/config.yaml .</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>And then do the following changes to the file:</p>
-<pre><code>samples:                           &quot;filelists/mapping_file.csv&quot;</code></pre>
-<p>Since I am only running one out of the different classifiers I also change the contents of:</p>
-<pre><code>methods:                           [&quot;minimap&quot;]</code></pre>
+<p>Changes made to the config file:</p>
+<pre><code>samples:                           &quot;filelists/mapping_file.csv&quot;
+
+methods:                           [&quot;minimap&quot;]</code></pre>
 <p>Since I do not want to subsample (useful if we want to reduce the data size for testing more than one classifier), I also edited this line:</p>
 <pre><code>subsample   
   skip:                          true</code></pre>
@@ -5137,48 +5165,50 @@ mic2024,BC01,,/home/ndombro/personal/teaching/2024/miceco/data/combined_data/bar
     maxlen:                        1600
     quality:                       10</code></pre>
 </section>
-</section>
-<section id="run-nanoclass" class="level2">
-<h2 class="anchored" data-anchor-id="run-nanoclass">Run NanoClass</h2>
-<p>Some steps, such as the initial quality filtering and some classifiers, require more computational resources. Therefore, it is beneficial to run NanoClass on a HPC with more memory and cpus and not on your own computer. The code should also run on a standard computer, however, the analyses might take quite some time.</p>
-<p>On crunchomics we start NanoClass by simply submitting the job script we copied early. This script is pre-configured to do everything for you such as:</p>
+<section id="run-nanoclass2-1" class="level3">
+<h3 class="anchored" data-anchor-id="run-nanoclass2-1">Run NanoClass2</h3>
+<p>To run NanoClass2 on the Crunchomics HPC, the jobscript.sh file can be used without any edits. This script is pre-configured to do everything for you such as:</p>
 <ul>
-<li><p>Load the correct environments that have all required tools installed</p></li>
-<li><p>Start NanoClass2 using snakemake, a job scheduler that takes care of what software is run when. Snakemake is useful as it allows to run things in parallel as long as there are enough resources available. Snakemake also allows to re-start a job and it will simply pick things up from whereever things went wrong.</p></li>
-<li><p>Start job: Tue Oct 24 16:07:12</p></li>
-<li><p>Finished job: Tue Oct 24 18:53:32</p></li>
+<li>Load the correct environments that have all required tools installed</li>
+<li>Start NanoClass2 using snakemake, a job scheduler that takes care of what software is run when. Snakemake is useful as it allows to run things in parallel as long as there are enough resources available. Snakemake also allows to re-start a job and it will simply pick things up from whereever things went wrong.</li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Do a dry-run to see if we set everything correctly </span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Since this is just a test, we can run this on the headnode </span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate /zfs/omics/projects/amplicomics/miniconda3/envs/snakemake_nanoclass2</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="ex">snakemake</span> <span class="dt">\</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">-s</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/Snakefile <span class="dt">\</span></span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">--configfile</span> config.yaml <span class="at">--use-conda</span> <span class="dt">\</span></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">--conda-prefix</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/.snakemake/conda <span class="dt">\</span></span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">--cores</span> 1 <span class="at">--nolock</span> <span class="at">--rerun-incomplete</span> <span class="at">-np</span></span>
-<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Submit job via a job script to the compute node: job id is 74581</span></span>
-<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="ex">sbatch</span> jobscript.sh</span>
-<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate a report out of this</span></span>
-<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="ex">snakemake</span> <span class="at">--report</span> report.html <span class="dt">\</span></span>
-<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">--configfile</span> config.yaml <span class="dt">\</span></span>
-<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">-s</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/Snakefile</span>
-<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> deactivate </span>
-<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Run seqkit on the cleaned data</span></span>
-<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="ex">seqkit</span> stats <span class="at">-a</span> <span class="at">-To</span> results/seqkit/seqkit_stats_filtered.tsv results/data/mic2024/chopper/BC<span class="pp">*</span>gz <span class="at">--threads</span> 10</span>
-<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a><span class="co"># cleanup (not needed)</span></span>
-<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a><span class="co"># rm -r results/benchmarks</span></span>
-<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a><span class="co"># rm -r results/data</span></span>
-<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a><span class="co"># rm -r results/logs</span></span>
-<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a><span class="co"># rm -r results/plots</span></span>
-<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a><span class="co"># rm -r results/stats</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Do a dry-run to see if we set everything correctly </span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Since this is just a test, we can run this on the headnode </span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate /zfs/omics/projects/amplicomics/miniconda3/envs/snakemake_nanoclass2</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="ex">snakemake</span> <span class="dt">\</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">-s</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/Snakefile <span class="dt">\</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">--configfile</span> config.yaml <span class="at">--use-conda</span> <span class="dt">\</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">--conda-prefix</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/.snakemake/conda <span class="dt">\</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">--cores</span> 1 <span class="at">--nolock</span> <span class="at">--rerun-incomplete</span> <span class="at">-np</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Submit job via a job script to the compute node: job id is 74581</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="ex">sbatch</span> jobscript.sh</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate a report out of this</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="ex">snakemake</span> <span class="at">--report</span> report.html <span class="dt">\</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">--configfile</span> config.yaml <span class="dt">\</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">-s</span> /zfs/omics/projects/amplicomics/bin/NanoClass2/Snakefile</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> deactivate </span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Run seqkit on the cleaned data</span></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a><span class="ex">seqkit</span> stats <span class="at">-a</span> <span class="at">-To</span> results/seqkit/seqkit_stats_filtered.tsv results/data/mic2024/chopper/BC<span class="pp">*</span>gz <span class="at">--threads</span> 10</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Replace barcode with sample IDs in the otu table</span></span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a><span class="fu">awk</span> <span class="at">-v</span> OFS=<span class="st">&quot;\t&quot;</span> <span class="st">&#39;NR==FNR {mapping[$1]=$2; next} {for (i=1; i&lt;=NF; i++) if ($i in mapping) $i=mapping[$i]; print}&#39;</span> <span class="dt">\</span></span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>  filelists/barcode_to_sample <span class="dt">\</span></span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>  <span class="op">&lt;(</span><span class="fu">sed</span> <span class="st">&quot;s/mic2024_minimap_//g&quot;</span> results/tables/otu-table.tsv<span class="op">)</span> <span class="dt">\</span></span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>  <span class="op">&gt;</span> results/tables/otu-table-updated.txt</span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a><span class="co"># Make the header compatible for MicrobiomeAnalyst</span></span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-i</span> <span class="st">&quot;s/taxid/\#NAME/g&quot;</span> results/tables/otu-table-updated.txt</span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove Gerards sample</span></span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> scripts/filter_columns.py <span class="at">-i</span> results/tables/otu-table-updated.txt <span class="dt">\</span></span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a>  <span class="at">-c</span> GM11 <span class="dt">\</span></span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>  <span class="at">-o</span> results/tables/otu-table-forMA.txt</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p><strong>Comments</strong></p>
 <ul>
@@ -5192,6 +5222,7 @@ mic2024,BC01,,/home/ndombro/personal/teaching/2024/miceco/data/combined_data/bar
 </ul>
 
 
+</section>
 </section>
 </section>
 
@@ -5587,7 +5618,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <footer class="footer">
   <div class="nav-footer">
     <div class="nav-footer-left">
-<p>Copyright 2023, Nina Dombrowski</p>
+<p>Copyright 2024, Nina Dombrowski</p>
 </div>   
     <div class="nav-footer-center">
        

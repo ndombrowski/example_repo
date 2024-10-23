@@ -1,21 +1,18 @@
 ---
-format:
-  html:
-    embed-resources: true
-    toc: true
-    toc-location: left
-
 execute:
   eval: false
 
 engine: knitr
 ---
 
-# Classify Winogradksy samples
+# Workflow for sequence classification
 
 ## Project description
 
-NanoClass2 is used to classify 16S rRNA amplicon sequences from 21 samples. DNA samples were taken from Winogradksy columns with wood or paper as substrate. For each substrate 3 independent columns were sampled and for each columns there are 3-4 replicates. DNA was sampled on two days, by two different groups of students (i.e. Practical_groups 1 and 2):
+NanoClass2 is used to classify 16S rRNA amplicon sequences from 21 samples. DNA samples were taken from Winogradksy columns with wood or paper as substrate. 
+
+For each substrate 3 independent columns were sampled and for each columns there are 3-4 replicates. 
+DNA was sampled on two days, by two different groups of students (i.e. Practical_groups 1 and 2):
 
 
 | #NAME | Sample  | Carbon_source | Wino_Column | Practical_group |
@@ -43,18 +40,24 @@ NanoClass2 is used to classify 16S rRNA amplicon sequences from 21 samples. DNA 
 | BC9   | BF-SD3  | wood          | SD3         | 1               |
 
 
+## Dependencies
+
+-   python v3.10.12
+-   sed (GNU sed) 4.5
+-   GNU Awk 4.2.1, API: 2.0 (GNU MPFR 3.1.6-p2, GNU MP 6.1.2)
+-   seqkit v2.7.0 
+-   Nanoplot v1.42.0
+-   NanoClass2 v0.1
+
+
 ## Folder setup
 
-First, setup a working directory on Crunchomics and move the sequencing data there.
+Data was analysed on the Uva Crunchomics HPC:
 
 ```{bash}
-# Go to working directory (on Crunchomics HPC)
+# Go to working directory
 wdir="/home/ndombro/personal/teaching/2024/miceco"
 cd $wdir
-
-# Upload sequencing data from local PC to Crunchomics
-mkdir data 
-scp data/mic2024.zip crunchomics:/home/ndombro/personal/teaching/2024/miceco/data
 ```
 
 
@@ -62,20 +65,24 @@ scp data/mic2024.zip crunchomics:/home/ndombro/personal/teaching/2024/miceco/dat
 
 ### Inspect data
 
-First, let us inspect what we have for each sample:
+We work with the following data:
+
+- Sequencing data was provided as zipped folder by Peter Kuperus Oktober 22, 2024 via SurfDrive. 
+- The file `filelists/barcode_to_sample` was generated manually from the mapping file provided by Gerard Muyzer and links the barcode to the sample ID.
+
+The data was uploaded to Crunchomics and the barcode IDs were extracted from the file names to be able to loop through individual samples:
 
 ```{bash}
+# Make data folders
+mkdir data 
 mkdir filelists 
+
+# Upload sequencing data from local PC to Crunchomics
+scp data/mic2024.zip crunchomics:/home/ndombro/personal/teaching/2024/miceco/data
 
 # Unzip data folder
 unzip data/mic2024.zip
 mv mic2024 data
-
-# Make a list of barcode to Day
-ls data/mic2024/*/fastq_pass/barcode*/*fastq.gz | \
-  cut -f3,5 -d "/" | \
-  awk -F "/" '{print $2 "\t" $1}' | \
-  sort -u > filelists/barcode_to_date.txt
 
 # Make a list of barcodes
 ls data/mic2024/*/fastq_pass/barcode*/*fastq.gz | \
@@ -85,9 +92,6 @@ ls data/mic2024/*/fastq_pass/barcode*/*fastq.gz | \
 # We work with so many barcodes: 21
 wc -l filelists/barcodes.txt
 
-#create a list of barcodes we work with (based on the excel sheet)
-#nano filelists/barcodes.txt
-
 # Count number of files we work with per barcode
 for i in `cat filelists/barcodes.txt`; do
     count=$((ll data/mic2024/*/fastq_pass/${i}/*fastq.gz) | wc -l)
@@ -96,6 +100,8 @@ done
 ```
 
 **Results**
+
+We work with 21 barcodes and for each barcode we work with several fastq.gz files:
 
 ```
 Barcode barcode01 has 145 fastq files
@@ -140,12 +146,12 @@ for i in `cat filelists/barcodes.txt`; do
 done
 
 # Sanity check: We work with 21 combined files
-# If this would be less than what we originally had, then we might want to check for issues
 ll data/combined_data/* | wc -l
 ```
 
 
 
+## Do quality control
 
 ### Calculate read counts
 
@@ -216,7 +222,10 @@ Total reads for barcode24 - Before: 6169, After: 6169
 
 ### Generate summary statistics
 
+Next, we calculate the quality statistics (total read count, average read count, read length, etc) to be able to screen the data for potential issues:
+
 ```{bash}
+# Make data folders
 mkdir -p results/seqkit
 mkdir -p results/nanoplot
 
@@ -245,12 +254,19 @@ conda deactivate
   - The read quality was more spread and and went from 10 to max 18
 
 
-### Prepare the mapping file
+## Run NanoClass2
 
-To run NanoClass we need:
+NanoClass2 will be used for quality cleaning and to classify the sequence reads for each sample.
+
+To run NanoClass2 we need:
 
 - The sequence files in fastq.gz format (one file per sample, which we already generated)
 - A csv mapping file that lists what samples you want to have analysed and how the samples are named
+- A config file in which we specify with what parameters we want to run NanoClass2
+- A bash file that allows us to run NanoClass2 on an HPC
+
+
+### Prepare the mapping file
 
 The csv mapping file needs to include the following:
 
@@ -260,7 +276,7 @@ The csv mapping file needs to include the following:
 - The path to your fastq.gz files (should be already demultiplexed)
 - Notice: Sample and run labels can only contain letters and numbers
 
-For our analysis the file looks something like this:
+For this analysis the file looks something like this:
 
 ```
 run,sample,barcode,path
@@ -269,7 +285,7 @@ mic2024,BC01,,/home/ndombro/personal/teaching/2024/miceco/data/combined_data/bar
 mic2024,BC01,,/home/ndombro/personal/teaching/2024/miceco/data/combined_data/barcode03.fastq.gz
 ```
 
-We could do this in excel, but we can also extract all the info we need from the file path:
+This file can be generatd in excel, but we can also extract all the info we need from the file path:
 
 ```{bash}
 echo "run,sample,barcode,path" > filelists/mapping_file.csv
@@ -291,25 +307,20 @@ The Snakemake configuration file, i.e. `config.yaml`, allows to adjust parameter
 
 - The location of your sample mapping file under `samples:`
 - The methods you want to use 
-
-The other file that is useful to have when running NanoClass2 on an HPC is the jobscript.sh, which is pre-configured to submit a job on the Crunchomics server.
-
-We first get a copy of the config file (and some other useful files):
+- The min, max read length to keep
+- The quality phred score to keep
 
 ```{bash}
+# Copy the required files from the NanoClass2 software folder
 cp /zfs/omics/projects/amplicomics/bin/NanoClass2/jobscript.sh .
 cp /zfs/omics/projects/amplicomics/bin/NanoClass2/config.yaml .
 ```
 
-And then do the following changes to the file:
+Changes made to the config file:
 
 ```
 samples:                           "filelists/mapping_file.csv"
-```
 
-Since I am only running one out of the different classifiers I also change the contents of:
-
-```
 methods:                           ["minimap"]
 ```
 
@@ -329,17 +340,12 @@ Based on the quality checking I also made some changes. I used the lowest/highes
 ```
 
 
-## Run NanoClass
+### Run NanoClass2
 
-Some steps, such as the initial quality filtering and some classifiers, require more computational resources. Therefore, it is beneficial to run NanoClass on a HPC with more memory and cpus and not on your own computer. The code should also run on a standard computer, however, the analyses might take quite some time.
-
-On crunchomics we start NanoClass by simply submitting the job script we copied early. This script is pre-configured to do everything for you such as:
+To run NanoClass2 on the Crunchomics HPC, the jobscript.sh file can be used without any edits. This script is pre-configured to do everything for you such as:
 
 - Load the correct environments that have all required tools installed
 - Start NanoClass2 using snakemake, a job scheduler that takes care of what software is run when. Snakemake is useful as it allows to run things in parallel as long as there are enough resources available. Snakemake also allows to re-start a job and it will simply pick things up from whereever things went wrong.
-
-- Start job: Tue Oct 24 16:07:12
-- Finished job: Tue Oct 24 18:53:32
 
 ```{bash}
 # Do a dry-run to see if we set everything correctly 
@@ -351,7 +357,6 @@ snakemake \
     --configfile config.yaml --use-conda \
     --conda-prefix /zfs/omics/projects/amplicomics/bin/NanoClass2/.snakemake/conda \
     --cores 1 --nolock --rerun-incomplete -np
-
 
 # Submit job via a job script to the compute node: job id is 74581
 sbatch jobscript.sh
@@ -366,12 +371,19 @@ conda deactivate
 # Run seqkit on the cleaned data
 seqkit stats -a -To results/seqkit/seqkit_stats_filtered.tsv results/data/mic2024/chopper/BC*gz --threads 10
 
-# cleanup (not needed)
-# rm -r results/benchmarks
-# rm -r results/data
-# rm -r results/logs
-# rm -r results/plots
-# rm -r results/stats
+# Replace barcode with sample IDs in the otu table
+awk -v OFS="\t" 'NR==FNR {mapping[$1]=$2; next} {for (i=1; i<=NF; i++) if ($i in mapping) $i=mapping[$i]; print}' \
+  filelists/barcode_to_sample \
+  <(sed "s/mic2024_minimap_//g" results/tables/otu-table.tsv) \
+  > results/tables/otu-table-updated.txt
+
+# Make the header compatible for MicrobiomeAnalyst
+sed -i "s/taxid/\#NAME/g" results/tables/otu-table-updated.txt
+
+# Remove Gerards sample
+python scripts/filter_columns.py -i results/tables/otu-table-updated.txt \
+  -c GM11 \
+  -o results/tables/otu-table-forMA.txt
 ```
 
 **Comments**

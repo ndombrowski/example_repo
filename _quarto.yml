@@ -15,4 +15,15 @@ website:
       - "code/nanoclass_workflow.qmd"
   page-footer:
     left: |
-      Copyright 2023, Nina Dombrowski
+      Copyright 2024, Nina Dombrowski
+
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-location: left
+
+execute:
+  eval: false
+
+engine: knitr
