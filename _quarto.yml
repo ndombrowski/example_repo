@@ -8,13 +8,22 @@ project:
 execute:
   freeze: auto  # re-render only when source changes
 
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-expand: true
+
 website:
   title: "Example workflow"
   page-navigation: true
+  search: 
+    location: sidebar
+    type: overlay
+    show-item-context: true
+
   sidebar: 
     style: "docked"
-    collapse-level: 2
-    search: true
     contents:
     - text: "Welcome page"
       href: index.qmd
@@ -30,12 +39,3 @@ website:
   page-footer:
     left: |
       Copyright 2024, Nina Dombrowski
-
-format:
-  html:
-    embed-resources: true
-    toc: true
-    toc-expand: true
-    toc-location: left
-
-engine: knitr

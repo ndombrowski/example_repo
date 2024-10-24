@@ -3,7 +3,6 @@ format:
   html:
     embed-resources: true
     toc: true
-    toc-location: left
     df-print: kable
 
 execute:
@@ -72,7 +71,7 @@ Next, we read in some custom things such as a theme that we will use for plottin
 Defining a custom_theme for our plots is useful because it means that instead of re-writing the commands for our plot over and over again in each plot, we can just use the `custom_theme` function instead.
 
 ```{r}
-#define custom theme for generating figures
+# Define custom theme for generating figures
 custom_theme <- function() {
   theme(
     panel.grid.major = element_blank(),
@@ -87,6 +86,73 @@ custom_theme <- function() {
     axis.text.x = element_text(size = 7),
     legend.text = element_text(size = 8), legend.title = element_text(size = 10)
   )
+}
+
+# Flexible function to create a faceted plot for multiple phyloseq objects
+plot_faceted_phyloseq <- function(...) {
+  # Capture the list of phyloseq objects and their method names
+  physeq_list <- list(...)
+  
+  # Initialize an empty data frame to store the combined data
+  combined_df <- data.frame(Sample = character(), Sums = numeric(), Method = character())
+
+  # Iterate over the list and extract sample sums for each phyloseq object
+  for (name in names(physeq_list)) {
+    physeq_obj <- physeq_list[[name]]
+    sample_sums_df <- data.frame(Sample = names(sample_sums(physeq_obj)),
+                                 Sums = sample_sums(physeq_obj),
+                                 Method = name)
+    combined_df <- bind_rows(combined_df, sample_sums_df)
+  }
+
+  # Set the factor levels for 'Method' in the order they were provided
+  combined_df$Method <- factor(combined_df$Method, levels = names(physeq_list))
+
+  # Create the faceted plot
+  p <- ggplot(combined_df, aes(x = Sample, y = Sums)) +
+    geom_bar(stat = "identity") +
+    facet_wrap(~ Method, scales = "free_y") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    xlab("Sample") +
+    ylab("Sample Sums") +
+    ggtitle("Faceted Plot of Sample Sums")
+
+  return(p)
+}
+
+# Custom function for plotting OTU table analysis
+plot_otu_histogram <- function(physeq_obj, metadata, bins = 100, title_suffix = "") {
+  
+  # Combine taxonomy and OTU table into a single dataframe
+  df <- cbind(
+    as.data.frame(as(tax_table(physeq_obj), "matrix")),
+    as.data.frame(as(otu_table(physeq_obj), "matrix"))
+  )
+  
+  # Reshape the data into long format
+  df_long <- reshape2::melt(df)
+  
+  # Merge with metadata
+  df_long <- merge(df_long, metadata, by.x = "variable", by.y = "sample_id")
+  
+  # Summarize the data by Genus and Carbon_source
+  df_summarized <- df_long %>%
+    group_by(Genus, Carbon_source) %>%
+    summarize(total_value = sum(value, na.rm = TRUE)) %>%
+    filter(!is.na(Genus) & Genus != "uncultured")
+  
+  # Create the plot
+  p <- ggplot(df_summarized, aes(x = total_value)) +
+    geom_histogram(bins = bins) +
+    custom_theme() +
+    facet_grid(cols = vars(Carbon_source), scales = "free") +
+    labs(title = paste("Histogram of taxa counts", title_suffix, "per Genus and Carbon Source"),
+         x = "Summed Value",
+         y = "Count",
+         fill = "Carbon Source") 
+  
+  # Return the plot
+  return(p)
 }
 
 #generate color scheme 
@@ -327,6 +393,7 @@ physeq_filt
 #physeq_filt = filter_taxa(physeq, function(x) sum(x > 1) > (0.1*length(x)), TRUE)
 #physeq_filt
 ```
+
 Next, we can calculate the summary statistics with the custom `taxa_sums` function we have defined before:
 
 ```{r}
@@ -350,9 +417,47 @@ Generating different phyloseq objects for different normalization approaches all
 
 ```{r, message=FALSE}
 physeq_rel_abundance <- microbiome::transform(physeq_filt, "compositional")
-physeq_clr <- microbiome::transform(physeq_filt, "clr")
+physeq_clr <- microbiome::transform(physeq_filt, "rclr")
 physeq_rarified <- rarefy_even_depth(physeq_filt)
 ```
+
+Plot how the data changed:
+
+```{r}
+faceted_plot <- plot_faceted_phyloseq(
+  Raw = physeq_filt,
+  Rarified = physeq_rarified,
+  `Relative Abundance` = physeq_rel_abundance,
+  CLR = physeq_clr
+)
+
+faceted_plot
+```
+If we plot the sums of each sample, we see that the rarefied data normalized to counts of approximately 4500 while during the relative abundance normalization the data was “scaled” to 0-1 (or 0-100%). The CLR-transformed data looks quite different because, after CLR transformation, we no longer work with raw counts. Instead, we focus on the dominance of taxa relative to the geometric mean of all taxa in a sample. This results in values like -2.1, 0.4, and 6.2, which makes plotting sample sums less meaningful. CLR is useful for comparing the relative abundance of taxa within each sample but not for direct comparisons of sample sums.
+
+We can also generate histograms:
+
+```{r,message=FALSE}
+# Raw data 
+plot_otu_histogram(physeq_filt, metadata_combined, bins = 100, title_suffix = "(raw)")
+```
+
+```{r,message=FALSE}
+# Relative abundance data 
+plot_otu_histogram(physeq_rel_abundance, metadata_combined, bins = 100, title_suffix = "(relative abundance)")
+```
+
+```{r,message=FALSE}
+# Rarefied data 
+plot_otu_histogram(physeq_rarified, metadata_combined, bins = 100, title_suffix = "(rarefied)")
+```
+
+```{r,message=FALSE}
+# CLR data 
+plot_otu_histogram(physeq_clr, metadata_combined, bins = 100, title_suffix = "(CLR)")
+```
+
+We can see that for none of the transformations we moved into a normal distribution and should keep this in mind for when we do the statistical analyses.
 
 
 ## Data exploration
@@ -487,8 +592,11 @@ Next, we can do a statistical test:
 ```{r}
 #extract metdatatas
 metadata2 <- data.frame(meta(physeq_rarified))
-  
-# Permanova test using the vegan package
+
+# Permanova test to test for differences between practical day
+adonis2(data_otu_filt_rar~Practical_group, data = metadata2, permutations=9999, method="bray")
+
+# Permanova test to test for differences between carbon source
 adonis2(data_otu_filt_rar~Carbon_source, data = metadata2, permutations=9999, method="bray")
 ```
 
@@ -529,7 +637,10 @@ phyloseq::plot_ordination(physeq_clr, ord_clr, color = "Carbon_source", shape = 
 #Generate distance matrix
 clr_dist_matrix <- phyloseq::distance(physeq_clr, method = "euclidean") 
 
-#ADONIS test
+#ADONIS test for experiment day --> No difference
+adonis2(clr_dist_matrix~Practical_group, data = metadata2, permutations=9999, method="bray")
+
+#ADONIS test for carbon source --> We see a difference
 adonis2(clr_dist_matrix~Carbon_source, data = metadata2, permutations=9999, method="bray")
 ```
 
@@ -668,13 +779,13 @@ Generated plots:
 
 
 
-### Differential abundance testing
+## Differential abundance testing
 
 Notice: This is still in development and needs to be optimized, use with care!
 
 
 
-#### Two-factor testing
+### Wilcox
 
 First, let us compare for differences for a category where we compare two factors. For example, we might want to ask whether there are any significant differences when comparing our wood versus paper samples.
 
@@ -721,7 +832,7 @@ head(wilcox_results)
 wilcox_results <- wilcox_results %>%
   arrange(p_value) %>%
   mutate(BH_FDR = p.adjust(p_value, "BH")) %>%
-  filter(BH_FDR < 0.001) %>%
+  filter(BH_FDR < 0.05) %>%
   dplyr::select(OTU, p_value, BH_FDR, everything())
 
 head(wilcox_results)  
@@ -729,6 +840,8 @@ head(wilcox_results)
 
 Wilcoxon has some down-sites when it comes to treating zero values, an alternative approach is to use the ANOVA-like differential expression (ALDEx2) method. The aldex function is a wrapper that performs log-ratio transformation and statistical testing in a single line of code, which is why we feed the non-normalized data into it:
 
+
+### ALDEx2
 
 ```{r}
 aldex2_da <- ALDEx2::aldex(data.frame(phyloseq::otu_table(physeq_filt)), phyloseq::sample_data(physeq_filt)$Carbon_source, test="t", effect = TRUE, denom="iqlr")
@@ -765,7 +878,7 @@ head(sig_aldex2)
 If an empty dataframe is returned, no significant differences were detected.
 
 
-#### DESeq2
+### DESeq2
 
 DESeq2 performs a differential expression analysis based on the Negative Binomial (a.k.a. Gamma-Poisson) distribution. DeSeq normalizes the data throughout its analysis, so we input only the filtered data. For more theory, visit this [page](https://uclouvain-cbio.github.io/WSBIM2122/sec-rnaseq.html).
 
@@ -782,7 +895,7 @@ ds <- DESeq(ds)
 
 #extract the results and filter by a FDR cutoff of 0.01 and
 #find significantly differentially abundant OTU between the seasons “paper” and “wood”
-alpha = 0.001
+alpha = 0.05
 res_desq = results(ds, contrast=c("Carbon_source", "paper", "wood"), alpha=alpha)
 res_desq = res_desq[order(res_desq$padj, na.last=NA), ]
 res_sig_deseq = as.data.frame(res_desq[(res_desq$padj < alpha), ])
@@ -830,7 +943,7 @@ ggplot(df_long, aes(x=Genus, y=value, color = Carbon_source)) +
 
 
 
-#### ANCOM
+### ANCOM
 
 ```{r}
 # Run ancom-bc2
@@ -876,7 +989,7 @@ fig_ancom = res_f_fig %>%
 fig_ancom
 ```
 
-#### Vendiagram
+### Combine results
 
 ```{r}
 x <- list(
@@ -898,18 +1011,32 @@ intersections<-attr(v_table,"intersections")
 sig_otus_ven <- intersections$`ancom:deseq:wilcox:aldex`
 
 # Plot
-df <- cbind(as.data.frame(as(tax_table(physeq_filt)[sig_otus_ven, ], "matrix")),as.data.frame(as(otu_table(physeq_filt)[sig_otus_ven, ], "matrix")))
+df <- cbind(as.data.frame(as(tax_table(physeq_clr)[sig_otus_ven, ], "matrix")),as.data.frame(as(otu_table(physeq_clr)[sig_otus_ven, ], "matrix")))
 
 df_long <- reshape2::melt(df)
 df_long <- merge(df_long, metadata2, by.x = "variable", by.y = "sample_id")
+df_long$tax <- paste("P_", df_long$Phylum, " ", "O_", df_long$Order, " ", "G_", df_long$Genus, sep = "")
 
-ggplot(df_long, aes(x=Genus, y=value, color = Carbon_source)) +
+wrap_by_separator <- function(variable, value) {
+  sapply(value, function(x) paste(strwrap(x, width = 10), collapse = "\n"))
+}
+  
+ggplot(df_long, aes(x=tax, y=value, color = Carbon_source)) +
   geom_boxplot(outlier.shape = NA) +
   geom_point(position = position_jitterdodge(jitter.width=0.1), size = 0.9)  +
   custom_theme() +
-   facet_wrap(~Genus, scales = "free") +
+   facet_wrap(~tax, scales = "free", labeller = label_wrap_gen()) +
   scale_color_manual(values = c( "orange", "purple")) +
-  theme(axis.text.x = element_text())
+  theme(axis.text.x = element_blank(),
+        strip.text.x = element_text(size = 4)) +
+  ylab("CLR transformed counts")
 
 ```
+
+How to interpret the CLR values for i.e. Acetovibrio:
+
+- Acetovibrio is more abundant in Condition A (with a positive CLR value of 5) than in Condition B (where it has a negative CLR value of -1)
+- CLR value of 5 on paper indicates that the abundance of Acetovibrio is higher than the geometric mean of the other genera in the composition in paper samples
+- CLR value of -1 on wood indicates that the abundance of Acetovibrio is slightly lower than the geometric mean of the other genera. In this case, Acetovibrio is less abundant under these growth conditions relative to other microbial taxa.
+
 
