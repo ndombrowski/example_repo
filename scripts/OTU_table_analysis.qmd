@@ -41,6 +41,7 @@ library(microbiome) #normalization
 library(ALDEx2) #stats
 library(DESeq2) #stats
 library(grid) #organizing multiple plots
+library(ggrepel) # deal with overlapping labels
 library(gridExtra) #organizing multiple plots
 library(scales) #plot aesthetics
 library(ANCOMBC) #stats
@@ -55,7 +56,7 @@ Print package versions:
 # List of packages loaded in the script
 packages <- c("tidyverse", "data.table", "phyloseq", "vegan", "microbiome", 
               "ALDEx2", "DESeq2", "grid", "gridExtra", "scales", "ANCOMBC", 
-              "rstatix", "ggvenn", "gplots")
+              "rstatix", "ggvenn", "gplots", "ggrepel")
 
 # Format package version numbers
 package_versions <- sapply(packages, function(pkg) {
@@ -71,7 +72,7 @@ cat(package_versions, sep = "\n")
 
 ## Custom functions
 
-Next, we read in some custom functions that allow us to, among others print summary statistics for an OTU table, functions to plot the same kind of plot multiple times, or a custom theme for plotting.
+Next, we read in some custom functions that allow us to, among others, print summary statistics for an OTU table, define custom functions to plot the same kind of plot multiple times, or to define a custom theme for plotting.
 
 Defining functions can be useful because it means that instead of re-writing the commands for things that use the same command but on a different dataframe over and over again, we can just use the custom functions instead.
 
@@ -224,6 +225,12 @@ merged_otu_table$taxid <- NULL
 
 # Check how many otus and samples we have
 dim(merged_otu_table)
+
+# Define list to define a custom order for the sample names
+# Here, I want to order the sample names based on the pattern after the _ (i.e.)
+# LK_P2, SB_P1 should become SB_P1, LK_P2 and thus orders our samples by replicates/Winogradsky column
+names_vec <- colnames(merged_otu_table)
+sorted_names <- names_vec[order(sub("^[^_]+_", "", names_vec))]
 ```
 
 With this example OTU table, we work with `dim(merged_otu_table)[2]` samples and `r dim(merged_otu_table)[1]` OTUs.
@@ -278,11 +285,11 @@ Next, we generate a table that list the taxonomy information for each taxonomic 
 If that is the case, you can read in the taxonomy information separate.
 
 ```{r}
-#extract taxonomy string
+# Extract taxonomy string
 temp <- as.data.frame(rownames(merged_otu_table))
 colnames(temp) <- "OTU"
 
-#separate the taxonomic headers                      
+# Separate the taxonomic headers                      
 taxonomy_file <- temp |> 
   distinct(OTU) |> 
   separate(OTU,
@@ -290,7 +297,7 @@ taxonomy_file <- temp |>
            sep = ";", remove = FALSE) |> 
   column_to_rownames(var = "OTU")
 
-#view file
+# View file
 head(taxonomy_file)
 ```
 
@@ -328,7 +335,7 @@ For this workflow, we define *singletons** as reads/OTUs with a sequence that is
 
 Notice that another definition of singletons can be as taxa/OTU present in a single sample.
         
-In amplicon data analysis it is useful to remove reads with low counts because they are very likely due to sequencing errors. We generally assume that sequencing errors are independent and randomly distributed, and we can assume that erroneous sequences will occur much less often than the true sequence. We will remove such sequences during the data filtering step.
+In amplicon data analyses it is useful to remove reads with low counts because they are very likely due to sequencing errors. We generally assume that sequencing errors are independent and randomly distributed, and we can assume that erroneous sequences will occur much less often than the true sequence. We will remove such sequences during the data filtering step.
 
 
 ### Explore the sequencing depth
@@ -366,7 +373,7 @@ Next, we filter the data. Specifically, we:
 
 - Remove OTUs that are not assigned to anything at Phylum rank. The `subset_taxa` function can be used to remove any taxa you want, i.e. if you have plant DNA in your sample, you could use this to remove chloroplast sequences as well.  
 - Remove samples with total read counts less than 20. This cutoff is arbitrary and depends a bit on your data. To choose a good value, explore the read counts you have per sample and define a cutoff based on that. In this example, we mainly want to remove the two low read samples we have seen in our plot.  
-- Remove low count OTUs: The threshold is up to you; removing singletons or doubletons is common, but you can be more conservative and remove any counts less than 10. Look at the plots before and get a feeling for how many OTUs were removed.  
+- Remove low count OTUs: The threshold is up to you; removing singletons or doubletons is common, but you can be more conservative and remove any counts less than 10.
 
 In our example, we want to remove samples with 20 or less reads, remove taxa with less than 3 hits only and remove OTUs that occur in less than 10% of our samples (v1). Since there are many different thoughts about OTU table filtering, you can also find two other options (v2 and v3) on how to filter a table.
 
@@ -421,7 +428,7 @@ print_summary(reads_per_OTU_filt)
 
 Below, we generate three new phyloseq objects using three different normalization approaches:
 
-1. Compositional: transforms the data into relative abundance
+1. Compositional: transforms the data into relative abundance, similar to total sum scaling (TSS)
 2. CLR: stands for centerd log-ratio transform and allows us to compare proportions of OTUs within each sample. After this transformation the values will no longer be counts, but rather the dominance (or lack thereof) for each taxa relative to the geometric mean of all taxa on the logarithmic scale
 3. Rarefaction: scales all of your reads down to the lowest total sequencing depth. Notice, that this might drop many OTUs in higher read samples and might lead to under-estimation of low-abundant OTUs
 
@@ -439,7 +446,7 @@ Plot how the data changed:
 faceted_plot <- plot_faceted_phyloseq(
   Raw = physeq_filt,
   Rarified = physeq_rarified,
-  `Relative Abundance` = physeq_rel_abundance,
+  TSS = physeq_rel_abundance,
   CLR = physeq_clr
 )
 
@@ -452,24 +459,48 @@ We can also generate histograms:
 
 ```{r,message=FALSE}
 # Raw data 
-plot_otu_histogram(physeq_filt, metadata_combined, bins = 100, title_suffix = "(raw)")
+df_filt <- cbind(as.data.frame(as(tax_table(physeq_filt), "matrix")),as.data.frame(as(taxa_sums(physeq_filt), "matrix")))
+
+ps1_df_plot <- 
+  ggplot(df_filt, aes(V1)) + 
+  geom_histogram() + 
+  custom_theme() +
+  ggtitle("Distribution of reads (raw, filtered) per taxa") + 
+  ylab("Frequency") +
+  xlab("Total reads")
+
+ps1_df_plot
 ```
 
 ```{r,message=FALSE}
 # Relative abundance data 
-plot_otu_histogram(physeq_rel_abundance, metadata_combined, bins = 100, title_suffix = "(relative abundance)")
+df_ra <- cbind(as.data.frame(as(tax_table(physeq_rel_abundance), "matrix")),as.data.frame(as(taxa_sums(physeq_rel_abundance), "matrix")))
+
+ps2_df_plot <- 
+  ggplot(df_ra, aes(V1)) + 
+  geom_histogram() + 
+  custom_theme() +
+  ggtitle("Distribution of reads (relative abundance) per taxa") + 
+  ylab("Frequency") +
+  xlab("Total reads")
+
+ps2_df_plot
 ```
 
 ```{r,message=FALSE}
 # Rarefied data 
-plot_otu_histogram(physeq_rarified, metadata_combined, bins = 100, title_suffix = "(rarefied)")
-```
+df_clr <- cbind(as.data.frame(as(tax_table(physeq_clr), "matrix")),as.data.frame(as(taxa_sums(physeq_clr), "matrix")))
 
-```{r,message=FALSE}
-# CLR data 
-plot_otu_histogram(physeq_clr, metadata_combined, bins = 100, title_suffix = "(CLR)")
-```
+ps3_df_plot <- 
+  ggplot(df_clr, aes(V1)) + 
+  geom_histogram() + 
+  custom_theme() +
+  ggtitle("Distribution of reads (clr-transformed) per taxa") + 
+  ylab("Frequency") +
+  xlab("Total reads")
 
+ps3_df_plot
+```
 We can see that for none of the transformations we moved into a normal distribution and should keep this in mind for when we do the statistical analyses.
 
 
@@ -500,13 +531,13 @@ df_rate %>%
   geom_line() + 
   facet_grid(cols = vars(Carbon_source)) +
   scale_color_manual(values = palette1) +
-  geom_text(aes(label = label),
-            position = position_nudge(x = 2000),
+  geom_text_repel(aes(label = label),
+            position = position_nudge(x = 6000),
             na.rm = TRUE, size = 3) +
   custom_theme()
 ```
 
-In this example we can see that almost none of the sample reach a plateau, RH is the closest but not there yet. This suggests that we mainly sampled the abundant members of our community and might miss many rare taxa. This is something to keep in mind for other analyses, such as alpha diversity analyses.
+In this example we can see that almost none of the samples reach a plateau, SB_P1 is the closest but not there yet. This suggests that we mainly sampled the abundant members of our community and might miss many rare taxa. This is something to keep in mind for other analyses, such as alpha diversity analyses and the statistics.
 
 
 ### Alpha diversity
@@ -527,7 +558,7 @@ richness_meta  <- merge(richness_meta, metadata_combined, by = "sample_id")
 colnames(richness_meta)
 ```
 
-Next, we can generate a plot. Since we calculated the diversity estimates after removing singletons, we will look at evenness indices, such as the Shannon index.
+Next, we can generate a plot. 
 
 ```{r}
 # Generate figure
@@ -552,7 +583,7 @@ alpha_plot
 #ggsave(paste0("results/plots/alpha-div.png"), plot=alpha_plot, device="png")
 ```
 
-We see that there is not a difference in terms of species evenness when comparing our different samples.
+We see that there is not a difference when comparing our different samples but that we have two potential outliers.
 
 
 ### Beta diversity
@@ -601,7 +632,7 @@ plot_ordination(physeq_rarified, pcoa_bc, color = "Carbon_source", shape = "Prac
   custom_theme()
 ```
 
-First, this two-dimensions PCOA plot show 34% of the total variance between the samples. Next, we see that the our samples are not forming distinct clusters, i.e. microbiomes from the mixed, paper and wood communities appear very similar.
+First, this two-dimensions PCOA plot show 35% of the total variance between the samples. Next, we see that our samples are forming distinct clusters, i.e. microbiomes from the paper and wood communities seem quite different.
 
 Next, we can do a statistical test:
 
@@ -620,7 +651,7 @@ There seems to be a difference between our samples.
 
 ### Aitchison
 
-Next, we generate a beta-diversity ordination using the Aitchison distance. We do this by applying PCA to the centered log-ratio (CLR) transformed counts.
+Next, we generate a beta-diversity ordination using the Aitchison distance and see if we get comparable results. 
 
 ```{r, warning=FALSE}
 # PCA via phyloseq
@@ -651,7 +682,7 @@ adonis2(clr_dist_matrix~Practical_group, data = metadata2, permutations=9999, me
 # ADONIS test for carbon source --> We see a difference
 adonis2(clr_dist_matrix~Carbon_source, data = metadata2, permutations=9999, method="bray")
 ```
-
+We get consistent results with our two approaches.
 
 
 ### Taxonomic distribution
@@ -691,14 +722,15 @@ desired_levels <- setdiff(sorted_labels$tax_level, "Other")
   
 # Sort df using the sorted levels and ensure that "Other" is the last category
 df$tax_level2 <- factor(df$tax_level, levels = c(desired_levels, "Other"))
-  
+df$Sample2 <- factor(df$Sample, levels = sorted_names)
+
 # Generate color scheme
 cols <- c25[1:length(unique(df$tax_level2))]
 cols[levels(df$tax_level2) == "Other"] <- "#CCCCCC"
   
 # Plot
 fig <-
-  ggplot(df, aes(x = Sample, y = Abundance, fill = tax_level2) ) +
+  ggplot(df, aes(x = Sample2, y = Abundance, fill = tax_level2) ) +
     geom_bar(position = "stack", stat = "identity", width = 0.9) +
     labs(y = "Relative abundance", x = "", title = paste0("Relative abundance at ", "Phylum", " rank")) +
     scale_fill_manual(name = paste0("Phylum","_rank"), labels = levels(df$tax_level2), values = cols) +
@@ -753,14 +785,15 @@ for (level in colnames(taxonomy_file)){
   
   # Sort df using the sorted levels and ensure that "Other" is the last category
   df$tax_level2 <- factor(df$tax_level, levels = c(desired_levels, "Other"))
-  
+  df$Sample2 <- factor(df$Sample, levels = sorted_names)
+
   # Generate color scheme
   cols <- c25[1:length(unique(df$tax_level2))]
   cols[levels(df$tax_level2) == "Other"] <- "#CCCCCC"
   
   # Plot
   fig <-
-    ggplot(df, aes(x = Sample, y = Abundance, fill = tax_level2) ) +
+    ggplot(df, aes(x = Sample2, y = Abundance, fill = tax_level2) ) +
       geom_bar(position = "stack", stat = "identity", width = 0.9) +
       labs(y = "Relative abundance", x = "", title = paste0("Relative abundance at ", level, " rank")) +
       scale_fill_manual(name = paste0(level,"_rank"), labels = levels(df$tax_level2), values = cols) +

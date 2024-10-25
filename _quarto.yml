@@ -25,12 +25,12 @@ website:
   sidebar: 
     style: "docked"
     contents:
-    - text: "Welcome page"
+    - text: "Project description"
       href: index.qmd
 
     - section: "Data analysis"
       contents:
-        - text: Sequence classification"
+        - text: Sequence classification
           href: scripts/nanoclass_workflow.qmd
 
         - text: "OTU table analysis"

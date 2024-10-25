@@ -248,10 +248,15 @@ conda deactivate
 
 **Summary**
 
-- Reads are on average 1358 bp long with Q1: 1374, Q2: 1425 and Q3: 1454
+- Reads are on average 1358 bp long with Q1: 1374, Q2: 1425 and Q3: 1454. 
 - Visualizing the plots, 
   - the majority of the data was hovering around 1400 bp
   - The read quality was more spread and and went from 10 to max 18
+- Conclusion: 
+  - No sample had shorter than expected amplicons
+  - Two samples had less than 200 reads and need to be removed at some point of the pipeline
+  - I will use phred score cutoff ~10
+  - I will use length cutoffs of 1100 bp (min) and 1600 bp (max) based on the Q1 and Q3 information from seqkit
 
 
 ## Run NanoClass2
